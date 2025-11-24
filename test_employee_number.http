@@ -1,0 +1,81 @@
+### Test Create Assignee with Employee Number Integration
+POST http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "spd_number": "SPD-001",
+  "employee_id": "1212313131121",
+  "employee_name": "Test User",
+  "employee_number": "1212313131121",
+  "position": "Software Engineer",
+  "rank": "Junior",
+  "transactions": []
+}
+
+### Test Update Assignee with Employee Number Integration
+PUT http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees/[ASSIGNEE_ID]
+Content-Type: application/json
+
+{
+  "name": "Updated Test User",
+  "spd_number": "SPD-001-Updated",
+  "employee_id": "1212313131121",
+  "employee_name": "Updated Test User",
+  "employee_number": "1212313131121",
+  "position": "Senior Software Engineer",
+  "rank": "Senior"
+}
+
+### Test Create Business Trip with Assignees (with employee_number)
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "Xray User",
+      "spd_number": "SPD-002",
+      "employee_id": "1212313131121",
+      "employee_name": "Xray User",
+      "employee_number": "1212313131121",
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    },
+    {
+      "name": "Riska Zata",
+      "spd_number": "SPD-003",
+      "employee_id": "200206062025062005",
+      "employee_name": "Riska Zata",
+      "employee_number": "200206062025062005",
+      "position": "Developer",
+      "rank": "Junior",
+      "transactions": [
+        {
+          "name": "Flight Booking",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1500000,
+          "description": "Flight to Jakarta"
+        }
+      ]
+    }
+  ]
+}

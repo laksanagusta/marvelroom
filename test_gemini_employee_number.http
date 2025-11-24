@@ -1,0 +1,64 @@
+### Test Gemini Document Processing with Employee Number
+POST http://localhost:5002/api/v1/business-trips/generate-recap-excel
+Content-Type: application/json
+
+{
+  "documents": [
+    {
+      "mimeType": "application/pdf",
+      "content": "BASE64_ENCODED_PDF_CONTENT_HERE"
+    }
+  ]
+}
+
+### Expected Gemini Response Format with Employee Number
+# The Gemini API will now return the following structure:
+{
+  "startDate": "2025-12-01",
+  "endDate": "2025-12-05",
+  "activityPurpose": "Client Meeting",
+  "destinationCity": "Jakarta",
+  "spdDate": "2025-11-25",
+  "departureDate": "2025-12-01",
+  "returnDate": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "employee_number": "1212313131121",  // Now extracted from document
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "subtotal": 2000000,
+          "description": "Hotel at Jakarta Central",
+          "transport_detail": ""
+        }
+      ]
+    },
+    {
+      "name": "Jane Smith",
+      "spd_number": "SPD-003",
+      "employee_number": "200206062025062005",  // Now extracted from document
+      "position": "Developer",
+      "rank": "Junior",
+      "transactions": [
+        {
+          "name": "Flight Booking",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1500000,
+          "total_night": null,
+          "subtotal": 1500000,
+          "description": "Flight to Jakarta",
+          "transport_detail": "transport_asal"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+### Test Create Business Trip with Employee Number Validation (Should Pass)
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "employee_number": "1212313131121",  // ✅ Required field
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    }
+  ]
+}
+
+### Test Create Business Trip without Employee Number (Should Fail)
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    }
+  ]
+}
+
+### Expected Error Response (for missing employee_number):
+{
+  "error": "EmployeeNumber: cannot be blank"
+}
+
+### Test Update Assignee with Employee Number Validation (Should Pass)
+PUT http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees/[ASSIGNEE_ID]
+Content-Type: application/json
+
+{
+  "name": "Updated John Doe",
+  "spd_number": "SPD-002-UPDATED",
+  "employee_number": "1212313131121",  // ✅ Required field
+  "position": "Senior Tech Lead",
+  "rank": "Senior"
+}
+
+### Test Update Assignee without Employee Number (Should Fail)
+PUT http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees/[ASSIGNEE_ID]
+Content-Type: application/json
+
+{
+  "name": "Updated John Doe",
+  "spd_number": "SPD-002-UPDATED",
+  "position": "Senior Tech Lead",
+  "rank": "Senior"
+}
+
+### Expected Error Response (for missing employee_number):
+{
+  "error": "EmployeeNumber: cannot be blank"
+}

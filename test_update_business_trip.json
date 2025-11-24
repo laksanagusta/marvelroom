@@ -1,0 +1,73 @@
+{
+  "startDate": "2024-01-15",
+  "endDate": "2024-01-17",
+  "activityPurpose": "Updated Meeting with client",
+  "destinationCity": "Surabaya",
+  "spdDate": "2024-01-10",
+  "departureDate": "2024-01-15",
+  "returnDate": "2024-01-17",
+  "assignees": [
+    {
+      "name": "John Doe Updated",
+      "spd_number": "SPD-2024-001-UPD",
+      "employee_id": "123456789",
+      "position": "Senior Software Engineer",
+      "rank": "IV/a",
+      "transactions": [
+        {
+          "name": "Hotel Booking Surabaya",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 600000,
+          "total_night": 2,
+          "description": "Hotel di Surabaya Timur"
+        },
+        {
+          "name": "Flight Ticket Updated",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1800000,
+          "description": "Garuda Indonesia CGK-SUB"
+        },
+        {
+          "name": "Daily Allowance Updated",
+          "type": "allowance",
+          "subtype": "daily_allowance",
+          "amount": 350000,
+          "description": "Uang harian 3 hari updated"
+        }
+      ]
+    },
+    {
+      "name": "Jane Smith Added",
+      "spd_number": "SPD-2024-003-NEW",
+      "employee_id": "987654321",
+      "position": "Product Manager",
+      "rank": "IV/b",
+      "transactions": [
+        {
+          "name": "Hotel Booking Surabaya",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 700000,
+          "total_night": 2,
+          "description": "Hotel di Surabaya Pusat"
+        },
+        {
+          "name": "Train Ticket",
+          "type": "transport",
+          "subtype": "train",
+          "amount": 800000,
+          "description": "Executive Class Jakarta-Surabaya"
+        },
+        {
+          "name": "Daily Allowance",
+          "type": "allowance",
+          "subtype": "daily_allowance",
+          "amount": 400000,
+          "description": "Uang harian 3 hari"
+        }
+      ]
+    }
+  ]
+}

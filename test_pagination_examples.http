@@ -1,0 +1,37 @@
+### Pagination API Examples
+
+# Basic pagination
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=5
+
+# Sort by creation date (newest first)
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&sort=created_at desc
+
+# Sort by start date ascending
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&sort=start_date asc
+
+# Filter by destination city (case-insensitive)
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&destination_city=ilike jakarta
+
+# Search in activity purpose
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&activity_purpose=ilike meeting
+
+# Filter by date range
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&start_date=gte 2024-01-01&end_date=lte 2024-12-31
+
+# Multiple filters with sorting
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=15&sort=created_at desc&destination_city=ilike jakarta&activity_purpose=ilike client
+
+# Filter by multiple cities
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&destination_city=in Jakarta,Surabaya,Bandung
+
+# Complex multi-field sorting
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=20&sort=destination_city asc,start_date desc
+
+# Recent trips (last 30 days)
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&created_at=gte 2024-10-18
+
+# Exclude specific destinations
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&destination_city=nin Jakarta,Bandung
+
+# Exact match filtering
+GET http://localhost:3000/api/v1/business-trips?page=1&limit=10&destination_city=eq Jakarta

@@ -1,0 +1,72 @@
+### Test Business Trip Creation with Fixed Business Trip Number Length
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "employee_number": "1212313131121",
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    }
+  ]
+}
+
+### Expected Success Response
+# The business trip should be created successfully now with a valid business_trip_number
+# that fits within the VARCHAR(10) constraint.
+
+# Business trip number formats:
+# - Primary: BT-XXXX (e.g., BT-0001) - 10 characters exactly
+# - Fallback: BT-XXXXXX (e.g., BT-a1b2c3) - 9 characters exactly (BT- + 6 chars UUID)
+
+### Expected Business Trip Data Structure:
+{
+  "id": "uuid",
+  "business_trip_number": "BT-0001", // ✅ Fits VARCHAR(10) constraint
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "assignees": [
+    {
+      "id": "assignee-uuid",
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "employee_id": "external-api-user-id", // ✅ Populated from external API
+      "employee_name": "John Doe", // ✅ Populated from external API
+      "employee_number": "1212313131121", // ✅ From request
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [...]
+    }
+  ]
+}
+
+### Error Before Fix:
+# "failed to create business trip: pq: value too long for type character varying(10)"
+# This error occurred because business_trip_number was being generated as "BT-XXXXXXXXXX" (11 chars)
+
+### Fix Applied:
+# 1. Repository fallback logic reduced from 8 to 6 UUID characters
+# 2. Generator UUID method reduced from 8 to 6 UUID characters
+# 3. Both now generate 9-character numbers (BT-XXXXXX) that fit VARCHAR(10)

@@ -1,0 +1,42 @@
+{
+  "startDate": "2024-01-15",
+  "endDate": "2024-01-17",
+  "activityPurpose": "Meeting with client",
+  "destinationCity": "Jakarta",
+  "spdDate": "2024-01-10",
+  "departureDate": "2024-01-15",
+  "returnDate": "2024-01-17",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-2024-001",
+      "employee_id": "123456789",
+      "position": "Software Engineer",
+      "rank": "III/a",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 2,
+          "description": "Hotel di Jakarta Selatan"
+        },
+        {
+          "name": "Flight Ticket",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1500000,
+          "description": "Garuda Indonesia CGK-DPS"
+        },
+        {
+          "name": "Daily Allowance",
+          "type": "allowance",
+          "subtype": "daily_allowance",
+          "amount": 300000,
+          "description": "Uang harian 3 hari"
+        }
+      ]
+    }
+  ]
+}

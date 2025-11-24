@@ -1,0 +1,94 @@
+{
+  "startDate": "2024-12-01",
+  "endDate": "2024-12-05",
+  "activityPurpose": "Client Meeting and Project Discussion",
+  "destinationCity": "Jakarta",
+  "spdDate": "2024-11-25",
+  "departureDate": "2024-12-01",
+  "returnDate": "2024-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-2024-001",
+      "employee_id": "EMP-001",
+      "employee_name": "John Doe",
+      "position": "Senior Software Engineer",
+      "rank": "Senior Level",
+      "transactions": [
+        {
+          "name": "Hotel Accommodation",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 150.00,
+          "total_night": 4,
+          "description": "Standard room with breakfast",
+          "transport_detail": ""
+        },
+        {
+          "name": "Flight Ticket",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 250.00,
+          "total_night": null,
+          "description": "Economy class round trip",
+          "transport_detail": "GA-234 Jakarta-Singapore, GA-235 Singapore-Jakarta"
+        },
+        {
+          "name": "Daily Allowance",
+          "type": "allowance",
+          "subtype": "daily_allowance",
+          "amount": 75.00,
+          "total_night": 5,
+          "description": "Meal and transportation allowance",
+          "transport_detail": ""
+        },
+        {
+          "name": "Airport Transfer",
+          "type": "transport",
+          "subtype": "taxi",
+          "amount": 50.00,
+          "total_night": null,
+          "description": "Airport to hotel and return",
+          "transport_detail": "Blue Bird Taxi"
+        }
+      ]
+    },
+    {
+      "name": "Jane Smith",
+      "spd_number": "SPD-2024-002",
+      "employee_id": "EMP-002",
+      "employee_name": "Jane Smith",
+      "position": "Project Manager",
+      "rank": "Manager Level",
+      "transactions": [
+        {
+          "name": "Hotel Accommodation",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 180.00,
+          "total_night": 4,
+          "description": "Executive room with breakfast",
+          "transport_detail": ""
+        },
+        {
+          "name": "Flight Ticket",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 250.00,
+          "total_night": null,
+          "description": "Economy class round trip",
+          "transport_detail": "GA-234 Jakarta-Singapore, GA-235 Singapore-Jakarta"
+        },
+        {
+          "name": "Daily Allowance",
+          "type": "allowance",
+          "subtype": "daily_allowance",
+          "amount": 100.00,
+          "total_night": 5,
+          "description": "Meal and transportation allowance",
+          "transport_detail": ""
+        }
+      ]
+    }
+  ]
+}

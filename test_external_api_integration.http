@@ -1,0 +1,113 @@
+### Test Create Business Trip with External API Integration
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "spd_number": "SPD-002",
+      "employee_number": "1212313131121",
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    },
+    {
+      "spd_number": "SPD-003",
+      "employee_number": "200206062025062005",
+      "position": "Developer",
+      "rank": "Junior",
+      "transactions": [
+        {
+          "name": "Flight Booking",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1500000,
+          "description": "Flight to Jakarta"
+        }
+      ]
+    }
+  ]
+}
+
+### Test Update Business Trip with External API Integration
+PUT http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/with-assignees
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Updated Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "spd_number": "SPD-002-UPDATED",
+      "employee_number": "1212313131121",
+      "position": "Senior Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking Updated",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 600000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central - Upgraded"
+        }
+      ]
+    },
+    {
+      "spd_number": "SPD-004-NEW",
+      "employee_number": "123456789012",
+      "position": "Project Manager",
+      "rank": "Manager",
+      "transactions": [
+        {
+          "name": "Train Ticket",
+          "type": "transport",
+          "subtype": "train",
+          "amount": 800000,
+          "description": "Business Class Train"
+        }
+      ]
+    }
+  ]
+}
+
+### Test Add Assignee with External API Integration
+POST http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees
+Content-Type: application/json
+
+{
+  "spd_number": "SPD-005-ADDED",
+  "employee_number": "987654321098",
+  "position": "QA Engineer",
+  "rank": "Junior",
+  "transactions": [
+    {
+      "name": "Taxi Fare",
+      "type": "transport",
+      "subtype": "taxi",
+      "amount": 150000,
+      "description": "Airport to Hotel Taxi"
+    }
+  ]
+}

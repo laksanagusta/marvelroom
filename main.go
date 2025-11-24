@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"sandbox/config"
-	"sandbox/interfaces/http/middleware"
-	"sandbox/interfaces/http/router"
+	httpRouter "sandbox/internal/delivery/http"
+	"sandbox/internal/delivery/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -31,8 +31,8 @@ func main() {
 	app.Use(middleware.ConfigureRecovery())
 	app.Use(middleware.ConfigureCORS(cfg.CORS.AllowOrigins))
 
-	// Setup routes
-	router.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler)
+	// Setup routes with all handlers
+	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler)
 
 	// Start server
 	fmt.Printf("🚀 Server running on port %s\n", cfg.Server.Port)
@@ -58,6 +58,5 @@ func customErrorHandler(c *fiber.Ctx, err error) error {
 }
 
 func getEnvironment() string {
-	// You can expand this to check for different environments
 	return "development"
 }

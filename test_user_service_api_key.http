@@ -1,0 +1,118 @@
+### Test User Service API with X-API-Key Header
+# This test demonstrates that the user service now includes the X-API-Key header in all API calls
+
+# The system will automatically add this header to all user API requests:
+# --header 'X-API-Key: 56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8'
+
+# Example API call that will be made internally:
+# GET http://localhost:5001/api/v1/external/users?page=1&limit=2&employee_id=in 1212313131121,200206062025062005
+# Headers:
+#   X-API-Key: 56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8
+
+### Test Create Business Trip (will call user service internally with API key)
+POST http://localhost:5002/api/v1/business-trips
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002",
+      "employee_number": "1212313131121",
+      "position": "Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 500000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central"
+        }
+      ]
+    },
+    {
+      "name": "Jane Smith",
+      "spd_number": "SPD-003",
+      "employee_number": "200206062025062005",
+      "position": "Developer",
+      "rank": "Junior",
+      "transactions": [
+        {
+          "name": "Flight Booking",
+          "type": "transport",
+          "subtype": "flight",
+          "amount": 1500000,
+          "description": "Flight to Jakarta"
+        }
+      ]
+    }
+  ]
+}
+
+### Test Update Business Trip (will call user service internally with API key)
+PUT http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/with-assignees
+Content-Type: application/json
+
+{
+  "start_date": "2025-12-01",
+  "end_date": "2025-12-05",
+  "activity_purpose": "Updated Client Meeting",
+  "destination_city": "Jakarta",
+  "spd_date": "2025-11-25",
+  "departure_date": "2025-12-01",
+  "return_date": "2025-12-05",
+  "assignees": [
+    {
+      "name": "John Doe",
+      "spd_number": "SPD-002-UPDATED",
+      "employee_number": "1212313131121",
+      "position": "Senior Tech Lead",
+      "rank": "Senior",
+      "transactions": [
+        {
+          "name": "Hotel Booking Updated",
+          "type": "accommodation",
+          "subtype": "hotel",
+          "amount": 600000,
+          "total_night": 4,
+          "description": "Hotel at Jakarta Central - Upgraded"
+        }
+      ]
+    }
+  ]
+}
+
+### Test Add Assignee (will call user service internally with API key)
+POST http://localhost:5002/api/v1/business-trips/[BUSINESS_TRIP_ID]/assignees
+Content-Type: application/json
+
+{
+  "spd_number": "SPD-004-NEW",
+  "employee_number": "123456789012",
+  "position": "Project Manager",
+  "rank": "Manager",
+  "transactions": [
+    {
+      "name": "Train Ticket",
+      "type": "transport",
+      "subtype": "train",
+      "amount": 800000,
+      "description": "Business Class Train"
+    }
+  ]
+}
+
+### Expected API Request Headers
+# All internal user API calls will include:
+# GET http://localhost:5001/api/v1/external/users?page=1&limit=N&employee_id=in [NIPs]
+# X-API-Key: 56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8
+# Content-Type: application/json
