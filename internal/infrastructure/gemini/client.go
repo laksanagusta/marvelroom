@@ -248,6 +248,59 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
 `
 }
 
+// ExtractVaccineRecommendations extracts vaccine information from CDC HTML
+func (c *Client) ExtractVaccineRecommendations(ctx context.Context, htmlContent string) (map[string]interface{}, error) {
+	if c.apiKey == "" {
+		return nil, errors.New("GEMINI_API_KEY is not configured")
+	}
+
+	prompt := c.getVaccineExtractionPrompt()
+
+	parts := []map[string]interface{}{
+		{"text": prompt},
+		{
+			"text": fmt.Sprintf("HTML Content to analyze:\n\n%s", htmlContent),
+		},
+	}
+
+	body := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": parts,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.getAPIURL(), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Gemini API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, string(bodyResp))
+	}
+
+	return c.parseVaccineResponse(bodyResp)
+}
+
 func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO, error) {
 	var geminiAPIResponse geminiResponse
 	if err := json.Unmarshal(bodyResp, &geminiAPIResponse); err != nil {
@@ -307,6 +360,81 @@ func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO,
 		ReceiptSignatureDate: geminiRawReport.ReceiptSignatureDate,
 		Assignees:            assignees,
 	}, nil
+}
+
+func (c *Client) getVaccineExtractionPrompt() string {
+	return `You are analyzing PRE-EXTRACTED vaccine-related HTML content from a CDC travel destination page. The content has been filtered to include only relevant vaccine tables and health sections.
+
+Extract all vaccine and health information from this optimized content and return it as a valid JSON object with this structure:
+
+{
+  "countryName": "Country name from the page",
+  "requiredVaccines": [
+    {
+      "name": "Vaccine name (e.g., Yellow Fever)",
+      "description": "Why it's required or any details",
+      "forWho": "Who needs it (e.g., All travelers, travelers from certain countries)"
+    }
+  ],
+  "recommendedVaccines": [
+    {
+      "name": "Vaccine name (e.g., Hepatitis A)",
+      "description": "Why it's recommended",
+      "forWho": "Who should get it"
+    }
+  ],
+  "considerVaccines": [
+    {
+      "name": "Vaccine name (e.g., Japanese Encephalitis)",
+      "description": "When to consider it",
+      "forWho": "Specific groups who should consider"
+    }
+  ],
+  "malariaInfo": {
+    "risk": "None/Low/Moderate/High - describe malaria risk",
+    "prophylaxis": "Whether malaria prophylaxis is recommended and details"
+  },
+  "healthNotice": "Any important health notices or warnings",
+  "lastUpdated": "Last updated date if mentioned"
+}
+
+CRITICAL GUIDELINES:
+- Return ONLY valid JSON, no additional text
+- Do not wrap JSON in quotes or markdown code blocks
+- The HTML content is already filtered for relevance - focus on extracting structured data
+- If a section has no information, return empty arrays []
+- Use standard vaccine names: "Hepatitis A", "Hepatitis B", "Typhoid", "MMR", "Japanese encephalitis", "Yellow Fever", "Rabies", "Influenza", "COVID-19", "Polio", "Tetanus", "Diphtheria", "Pertussis", "Chickenpox (Varicella)", "Cholera"
+- Convert "required", "mandatory", "for entry" to requiredVaccines
+- Convert "recommended", "CDC recommends" to recommendedVaccines
+- Convert "consider", "some travelers", "certain travelers" to considerVaccines
+
+TABLE EXTRACTION INSTRUCTIONS:
+- Look specifically for tables with class="disease" and id starting with "dest-vm-"
+- Extract data from table rows: first column = disease/vaccine name, second column = recommendations, third column = clinical guidance
+- For "Routine vaccines" in first column, extract the individual vaccines listed in the recommendations
+- Pay attention to "Vaccine is not recommended" vs "Vaccine is not required" for proper categorization
+- Extract malaria transmission areas, drug resistance, species, and recommended chemoprophylaxis when present`
+}
+
+func (c *Client) parseVaccineResponse(bodyResp []byte) (map[string]interface{}, error) {
+	var geminiAPIResponse geminiResponse
+	if err := json.Unmarshal(bodyResp, &geminiAPIResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse Gemini API response wrapper: %w", err)
+	}
+
+	if len(geminiAPIResponse.Candidates) == 0 || len(geminiAPIResponse.Candidates[0].Content.Parts) == 0 {
+		return nil, errors.New("empty response candidates or parts from Gemini API")
+	}
+
+	rawText := geminiAPIResponse.Candidates[0].Content.Parts[0].Text
+	cleanJSON := c.cleanJSON(rawText)
+
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(cleanJSON), &result); err != nil {
+		return nil, fmt.Errorf("failed to parse vaccine JSON content: %w (raw: %s)", err, cleanJSON)
+	}
+
+	return result, nil
 }
 
 func (c *Client) cleanJSON(s string) string {

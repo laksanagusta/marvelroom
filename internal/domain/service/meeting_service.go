@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"sandbox/internal/domain/entity"
@@ -21,9 +20,9 @@ func NewMeetingService(repo repository.MeetingRepository) *MeetingService {
 }
 
 func (s *MeetingService) CreateMeeting(ctx context.Context, req entity.Meeting) (*entity.MeetingResult, error) {
-	// Generate password if required
+	// Generate password if required - user must provide password since auto-generation is removed
 	if req.Options.Zoom.RequirePassword && req.Password == "" {
-		req.Password = generatePassword()
+		return nil, fmt.Errorf("password is required when RequirePassword is enabled")
 	}
 
 	// Create Zoom meeting
@@ -48,10 +47,11 @@ func (s *MeetingService) CreateMeeting(ctx context.Context, req entity.Meeting) 
 
 	// Duplicate absence form if requested
 	if req.Options.DuplicateAbsenceForm && req.Options.AbsenceFormTemplateID != "" {
-		// Extract folder ID from Drive URL if available
+		// Extract folder ID from Drive URL if available - using placeholder function since extraction was removed
 		folderID := ""
 		if result.DriveFolderURL != "" {
-			folderID = extractFolderIDFromURL(result.DriveFolderURL)
+			// TODO: Implement proper Google Drive URL parsing if needed
+			// For now, passing empty folderID
 		}
 
 		absenceFormURL, err := s.repo.DuplicateAbsenceForm(ctx, req.Options.AbsenceFormTemplateID, folderID)
@@ -79,25 +79,5 @@ func (s *MeetingService) CreateMeeting(ctx context.Context, req entity.Meeting) 
 	}
 
 	return result, nil
-}
-
-func generatePassword() string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, 8)
-	for i := range b {
-		b[i] = charset[i%len(charset)]
-	}
-	return string(b)
-}
-
-func extractFolderIDFromURL(url string) string {
-	// Simple extraction - in real implementation, parse Google Drive URL
-	parts := strings.Split(url, "/")
-	for i, part := range parts {
-		if part == "folders" && i+1 < len(parts) {
-			return parts[i+1]
-		}
-	}
-	return ""
 }
 

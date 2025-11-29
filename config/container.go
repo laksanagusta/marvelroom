@@ -2,18 +2,25 @@ package config
 
 import (
 	businessTripUC "sandbox/internal/usecase/business_trip"
+	workPaperItemUC "sandbox/internal/usecase/work_paper_item"
 	meetingUC "sandbox/internal/usecase/meeting"
 	transactionUC "sandbox/internal/usecase/transaction"
+	workPaperUC "sandbox/internal/usecase/work_paper"
+	vaccineUC "sandbox/internal/usecase/vaccine"
+	"sandbox/internal/infrastructure/cdc"
 	"sandbox/internal/infrastructure/drive"
+	"sandbox/internal/infrastructure/llm"
 	"sandbox/internal/infrastructure/excel"
 	"sandbox/internal/infrastructure/file"
 	"sandbox/internal/infrastructure/gemini"
-	"sandbox/internal/infrastructure/user"
+	"sandbox/internal/infrastructure/cryptography"
 	postgresInfra "sandbox/internal/infrastructure/database/postgres"
 	postgresRepo "sandbox/internal/infrastructure/postgres"
+	"sandbox/internal/infrastructure"
 	"sandbox/internal/infrastructure/notification"
 	"sandbox/internal/infrastructure/zoom"
 	"sandbox/internal/delivery/http/handler"
+	deskHandler "sandbox/internal/delivery/http/handler/desk"
 	"sandbox/internal/domain/repository"
 	"sandbox/internal/domain/service"
 	"sandbox/pkg/database"
@@ -29,6 +36,15 @@ type Container struct {
 	BusinessTripHandler             *handler.BusinessTripHandler
 	AssigneeHandler                 *handler.AssigneeHandler
 	BusinessTripTransactionHandler  *handler.BusinessTripTransactionHandler
+	WorkPaperItemHandler            *deskHandler.WorkPaperItemHandler
+	WorkPaperHandler               *deskHandler.WorkPaperHandler
+	WorkPaperSignatureHandler  *handler.WorkPaperSignatureHandler
+	VaccineHandler                   *handler.VaccineHandler
+	CryptoHandler                    *handler.CryptoHandler
+
+	// Backward compatibility aliases (deprecated)
+	MasterLakipItemHandler          *deskHandler.WorkPaperItemHandler
+	PaperWorkHandler               *deskHandler.WorkPaperHandler
 
 	// Transaction Use Cases
 	ExtractTransactionsUseCase *transactionUC.ExtractTransactionsUseCase
@@ -61,11 +77,33 @@ type Container struct {
 	DeleteTransactionUseCase  *businessTripUC.DeleteTransactionUseCase
 	ListTransactionsUseCase   *businessTripUC.ListTransactionsUseCase
 
+	// Desk Module Use Cases
+	CreateWorkPaperItemUseCase *workPaperItemUC.CreateWorkPaperItemUseCase
+	ListWorkPaperItemsUseCase  *workPaperItemUC.ListWorkPaperItemsUseCase
+	CreateWorkPaperUseCase     *workPaperUC.CreateWorkPaperUseCase
+	CheckWorkPaperNoteUseCase   *workPaperUC.CheckWorkPaperNoteUseCase
+
+	// Backward compatibility aliases (deprecated)
+	CreateMasterLakipItemUseCase *workPaperItemUC.CreateWorkPaperItemUseCase
+	ListMasterLakipItemsUseCase  *workPaperItemUC.ListWorkPaperItemsUseCase
+	CreatePaperWorkUseCase       *workPaperUC.CreateWorkPaperUseCase
+	CheckDocumentUseCase         *workPaperUC.CheckWorkPaperNoteUseCase
+
 	// Repositories
-	GeminiClient       *gemini.Client
-	UserClient         user.ClientInterface
-	MeetingRepo        repository.MeetingRepository
-	BusinessTripRepo   repository.BusinessTripRepository
+	GeminiClient            *gemini.Client
+	IdentityService         infrastructure.IdentityServiceInterface
+	MeetingRepo             repository.MeetingRepository
+	BusinessTripRepo        repository.BusinessTripRepository
+	WorkPaperItemRepo       repository.WorkPaperItemRepository
+	OrganizationRepo        repository.OrganizationRepository
+	WorkPaperRepo           repository.WorkPaperRepository
+	WorkPaperNoteRepo       repository.WorkPaperNoteRepository
+	WorkPaperSignatureRepo repository.WorkPaperSignatureRepository
+
+	// Backward compatibility aliases (deprecated)
+	MasterLakipItemRepo     repository.MasterLakipItemRepository
+	PaperWorkRepo           repository.PaperWorkRepository
+	PaperWorkItemRepo       repository.PaperWorkItemRepository
 
 	// Database
 	DBx   *sqlx.DB
@@ -88,7 +126,7 @@ func NewContainer(cfg *Config) *Container {
 
 	// Infrastructure layer
 	geminiClient := gemini.NewClient(cfg.Gemini.APIKey)
-	userClient := user.NewClientWithAPIKey(cfg.User.BaseURL, cfg.User.APIKey)
+	identityService := infrastructure.NewIdentityServiceWithAPIKey(cfg.User.BaseURL, cfg.User.APIKey)
 	fileProcessor := file.NewProcessor()
 	excelGenerator := excel.NewGenerator()
 
@@ -101,21 +139,30 @@ func NewContainer(cfg *Config) *Container {
 	// Business Trip infrastructure - Now implemented!
 	businessTripRepo := postgresRepo.NewBusinessTripRepository(dbWrapper)
 
+	// Domain Services - moved up before use cases that use it
+	transactionService := service.NewTransactionService(geminiClient)
+	meetingService := service.NewMeetingService(meetingRepo)
+	userService := service.NewUserService(identityService)
+	// vaksinService := service.NewVaksinService(vaksinRepo) // Not used for vaccines endpoint
+
+	// Vaccines infrastructure
+	vaccinesRepo := postgresRepo.NewVaccinesRepository(dbWrapper)
+
 	// Business Trip Use Cases - Now enabled!
-	createBusinessTripUseCase := businessTripUC.NewCreateBusinessTripUseCase(businessTripRepo, userClient, dbWrapper)
+	createBusinessTripUseCase := businessTripUC.NewCreateBusinessTripUseCase(businessTripRepo, userService, dbWrapper)
 	getBusinessTripUseCase := businessTripUC.NewGetBusinessTripUseCase(businessTripRepo)
 	updateBusinessTripUseCase := businessTripUC.NewUpdateBusinessTripUseCase(businessTripRepo)
-	updateBusinessTripWithAssigneesUseCase := businessTripUC.NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo, userClient, dbWrapper)
+	updateBusinessTripWithAssigneesUseCase := businessTripUC.NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo, userService, dbWrapper)
 	deleteBusinessTripUseCase := businessTripUC.NewDeleteBusinessTripUseCase(businessTripRepo)
 	listBusinessTripsUseCase := businessTripUC.NewListBusinessTripsUseCase(businessTripRepo)
-	addAssigneeUseCase := businessTripUC.NewAddAssigneeUseCase(businessTripRepo, userClient, dbWrapper)
+	addAssigneeUseCase := businessTripUC.NewAddAssigneeUseCase(businessTripRepo, userService, dbWrapper)
 	addTransactionUseCase := businessTripUC.NewAddTransactionUseCase(businessTripRepo)
 	getBusinessTripSummaryUseCase := businessTripUC.NewGetBusinessTripSummaryUseCase(businessTripRepo)
 	getAssigneeSummaryUseCase := businessTripUC.NewGetAssigneeSummaryUseCase(businessTripRepo)
 
 	// New Assignee Use Cases
 	getAssigneeUseCase := businessTripUC.NewGetAssigneeUseCase(businessTripRepo)
-	updateAssigneeUseCase := businessTripUC.NewUpdateAssigneeUseCase(businessTripRepo, userClient)
+	updateAssigneeUseCase := businessTripUC.NewUpdateAssigneeUseCase(businessTripRepo, userService)
 	deleteAssigneeUseCase := businessTripUC.NewDeleteAssigneeUseCase(businessTripRepo)
 	listAssigneesUseCase := businessTripUC.NewListAssigneesUseCase(businessTripRepo)
 
@@ -124,10 +171,10 @@ func NewContainer(cfg *Config) *Container {
 	updateTransactionUseCase := businessTripUC.NewUpdateTransactionUseCase(businessTripRepo)
 	deleteTransactionUseCase := businessTripUC.NewDeleteTransactionUseCase(businessTripRepo)
 	listTransactionsUseCase := businessTripUC.NewListTransactionsUseCase(businessTripRepo)
-
-	// Domain Services
-	transactionService := service.NewTransactionService(geminiClient)
-	meetingService := service.NewMeetingService(meetingRepo)
+	// CDC Service for vaccine recommendations
+	vaccineExtractor := gemini.NewVaccineExtractorAdapter(geminiClient)
+	cdcClient := cdc.NewCDCClient(cfg.CDC.BaseURL, cfg.CDC.WebBaseURL, cfg.CDC.APIKey)
+	cdcService := service.NewCDCService(vaccinesRepo, cdcClient, vaccineExtractor)
 
 	// Transaction Use Cases
 	extractTransactionsUseCase := transactionUC.NewExtractTransactionsUseCase(transactionService)
@@ -136,9 +183,15 @@ func NewContainer(cfg *Config) *Container {
 	// Meeting Use Cases
 	createMeetingUseCase := meetingUC.NewCreateMeetingUseCase(meetingService)
 
+	// Vaccines Use Cases
+	listMasterVaccinesUseCase := vaccineUC.NewListMasterVaccinesUseCase(vaccinesRepo)
+	listCountriesUseCase := vaccineUC.NewListCountriesUseCase(vaccinesRepo)
+	getCDCRecommendationsUseCase := vaccineUC.NewGetCDCRecommendationsUseCase(cdcService)
+
 	// Interface layer
 	transactionHandler := handler.NewTransactionHandler(extractTransactionsUseCase, fileProcessor, generateRecapExcelUseCase)
 	meetingHandler := handler.NewMeetingHandler(createMeetingUseCase)
+	vaccineHandler := handler.NewVaccineHandler(listMasterVaccinesUseCase, listCountriesUseCase, getCDCRecommendationsUseCase)
 
 	// Business Trip handler - Now enabled!
 	businessTripHandler := handler.NewBusinessTripHandler(
@@ -173,12 +226,107 @@ func NewContainer(cfg *Config) *Container {
 		getAssigneeUseCase,
 	)
 
+	// Desk Module Infrastructure
+	workPaperItemRepo := postgresRepo.NewWorkPaperItemRepository(dbWrapper)
+	workPaperRepo := postgresRepo.NewWorkPaperRepository(dbWrapper)
+	workPaperNoteRepo := postgresRepo.NewWorkPaperNoteRepository(dbWrapper)
+	workPaperSignatureRepo := postgresRepo.NewWorkPaperSignatureRepository(dbx)
+
+	// Organization Service - now using unified IdentityService
+	organizationRepo := infrastructure.NewOrganizationRepository(identityService)
+
+	// Desk Module Services - Use service account authentication
+	gdriveService, err := drive.NewGoogleDriveService("") // Will use default credentials file
+	if err != nil {
+		panic("Failed to create Google Drive service: " + err.Error())
+	}
+
+	llmService, err := llm.NewGeminiService(cfg.Gemini.APIKey)
+	if err != nil {
+		panic("Failed to create LLM service: " + err.Error())
+	}
+
+	deskService := service.NewDeskService(
+		workPaperItemRepo,
+		organizationRepo,
+		workPaperRepo,
+		workPaperNoteRepo,
+		workPaperSignatureRepo,
+		gdriveService,
+		llmService,
+	)
+
+	// Backward compatibility aliases (deprecated)
+	masterLakipItemRepo := workPaperItemRepo
+	paperWorkRepo := workPaperRepo
+	paperWorkItemRepo := workPaperNoteRepo
+
+	// Desk Module Use Cases
+	createWorkPaperItemUseCase := workPaperItemUC.NewCreateWorkPaperItemUseCase(deskService)
+	listWorkPaperItemsUseCase := workPaperItemUC.NewListWorkPaperItemsUseCase(workPaperItemRepo)
+	createWorkPaperUseCase := workPaperUC.NewCreateWorkPaperUseCase(deskService)
+	checkWorkPaperNoteUseCase := workPaperUC.NewCheckWorkPaperNoteUseCase(deskService)
+	listWorkPapersUseCase := workPaperUC.NewListWorkPapersUseCase(deskService)
+	updateWorkPaperStatusUseCase := workPaperUC.NewUpdateWorkPaperStatusUseCase(deskService)
+	updateWorkPaperNoteUseCase := workPaperUC.NewUpdateWorkPaperNoteUseCase(deskService)
+	getWorkPaperDetailsUseCase := workPaperUC.NewGetWorkPaperDetailsUseCase(deskService)
+
+	// Backward compatibility aliases
+	createMasterLakipItemUseCase := workPaperItemUC.NewCreateMasterLakipItemUseCase(deskService)
+	listMasterLakipItemsUseCase := workPaperItemUC.NewListMasterLakipItemsUseCase(workPaperItemRepo)
+	createPaperWorkUseCase := workPaperUC.NewCreatePaperWorkUseCase(deskService)
+	checkDocumentUseCase := workPaperUC.NewCheckDocumentUseCase(deskService)
+
+	// Desk Module Handlers
+	workPaperItemHandler := deskHandler.NewWorkPaperItemHandler(
+		createWorkPaperItemUseCase,
+		listWorkPaperItemsUseCase,
+	)
+
+	workPaperHandler := deskHandler.NewWorkPaperHandler(
+		createWorkPaperUseCase,
+		checkWorkPaperNoteUseCase,
+		listWorkPapersUseCase,
+		getWorkPaperDetailsUseCase,
+		updateWorkPaperStatusUseCase,
+		updateWorkPaperNoteUseCase,
+	)
+
+	// Work Paper Signature Handler
+	workPaperSignatureHandler := handler.NewWorkPaperSignatureHandler(deskService)
+
+	// Cryptography Service
+	cryptoServiceProvider := cryptography.NewServiceProvider()
+	cryptoService, err := cryptoServiceProvider.NewCryptoService()
+	if err != nil {
+		panic("Failed to create crypto service: " + err.Error())
+	}
+
+	// Crypto Handler
+	cryptoHandler := handler.NewCryptoHandler(cryptoService, deskService)
+
+	// Backward compatibility handler aliases
+	masterLakipItemHandler := deskHandler.NewMasterLakipItemHandler(
+		createMasterLakipItemUseCase,
+		listMasterLakipItemsUseCase,
+	)
+
+	paperWorkHandler := deskHandler.NewPaperWorkHandler(
+		createPaperWorkUseCase,
+		checkDocumentUseCase,
+	)
+
 	return &Container{
 		TransactionHandler:              transactionHandler,
 		MeetingHandler:                  meetingHandler,
 		BusinessTripHandler:             businessTripHandler,
 		AssigneeHandler:                 assigneeHandler,
 		BusinessTripTransactionHandler:  businessTripTransactionHandler,
+		WorkPaperItemHandler:            workPaperItemHandler,
+		WorkPaperHandler:               workPaperHandler,
+		WorkPaperSignatureHandler:  workPaperSignatureHandler,
+		VaccineHandler:                   vaccineHandler,
+		CryptoHandler:                    cryptoHandler,
 		ExtractTransactionsUseCase:      extractTransactionsUseCase,
 		GenerateRecapExcelUseCase:       generateRecapExcelUseCase,
 		CreateMeetingUseCase:            createMeetingUseCase,
@@ -199,10 +347,36 @@ func NewContainer(cfg *Config) *Container {
 		UpdateTransactionUseCase:        updateTransactionUseCase,
 		DeleteTransactionUseCase:        deleteTransactionUseCase,
 		ListTransactionsUseCase:         listTransactionsUseCase,
+
+		// Desk Module Use Cases
+		CreateWorkPaperItemUseCase:      createWorkPaperItemUseCase,
+		ListWorkPaperItemsUseCase:       listWorkPaperItemsUseCase,
+		CreateWorkPaperUseCase:          createWorkPaperUseCase,
+		CheckWorkPaperNoteUseCase:        checkWorkPaperNoteUseCase,
+
+		// Backward compatibility aliases (deprecated)
+		MasterLakipItemHandler:          masterLakipItemHandler,
+		PaperWorkHandler:               paperWorkHandler,
+		CreateMasterLakipItemUseCase:    createMasterLakipItemUseCase,
+		ListMasterLakipItemsUseCase:     listMasterLakipItemsUseCase,
+		CreatePaperWorkUseCase:          createPaperWorkUseCase,
+		CheckDocumentUseCase:            checkDocumentUseCase,
+
 		GeminiClient:                    geminiClient,
-		UserClient:                      userClient,
+		IdentityService:                 identityService,
 		MeetingRepo:                     meetingRepo,
 		BusinessTripRepo:                businessTripRepo,
+		WorkPaperItemRepo:               workPaperItemRepo,
+		OrganizationRepo:                organizationRepo,
+		WorkPaperRepo:                   workPaperRepo,
+		WorkPaperNoteRepo:               workPaperNoteRepo,
+		WorkPaperSignatureRepo:           workPaperSignatureRepo,
+
+		// Backward compatibility aliases (deprecated)
+		MasterLakipItemRepo:             masterLakipItemRepo,
+		PaperWorkRepo:                   paperWorkRepo,
+		PaperWorkItemRepo:               paperWorkItemRepo,
+
 		DBx:                             dbx,
 		FileProcessor:                   fileProcessor,
 		ExcelGenerator:                  excelGenerator,

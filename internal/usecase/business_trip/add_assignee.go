@@ -8,7 +8,6 @@ import (
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
 	"sandbox/internal/domain/service"
-	"sandbox/internal/infrastructure/user"
 	"sandbox/pkg/database"
 )
 
@@ -18,8 +17,7 @@ type AddAssigneeUseCase struct {
 	db               database.DB
 }
 
-func NewAddAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userClient user.ClientInterface, db database.DB) *AddAssigneeUseCase {
-	userService := service.NewUserService(userClient)
+func NewAddAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService, db database.DB) *AddAssigneeUseCase {
 	return &AddAssigneeUseCase{
 		businessTripRepo: businessTripRepo,
 		userService:     userService,

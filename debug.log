@@ -1,0 +1,20 @@
+2025/11/29 10:41:16 📊 Database Config: Host=localhost, Port=5432, User=postgres, DB=moscow, SSL=disable
+2025/11/29 10:41:16 ✅ Database (sqlx) connected successfully
+2025/11/29 10:41:16 Creating Google Drive service with credentials file: dika-n8n-2db124fa64de.json
+2025/11/29 10:41:16 Successfully created Google Drive service
+2025/11/29 10:41:16 http://localhost:3000
+🚀 Server running on port 5016
+📝 Environment: development
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                   Fiber v2.52.9                   │ 
+ │               http://127.0.0.1:5016               │ 
+ │       (bound on host 0.0.0.0 and port 5016)       │ 
+ │                                                   │ 
+ │ Handlers ............ 81  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 65417 │ 
+ └───────────────────────────────────────────────────┘ 
+
+[2025-11-29 10:41:24] 404 -      57.667µs GET /api/v1/crypto/public-key
+[2025-11-29 10:41:38] 200 -    6.345292ms GET /api/v1/vaccine/master-vaccines
+[2025-11-29 10:41:47] 404 -       19.25µs GET /api/v1/crypto/

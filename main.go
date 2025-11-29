@@ -32,11 +32,11 @@ func main() {
 	app.Use(middleware.ConfigureCORS(cfg.CORS.AllowOrigins))
 
 	// Setup routes with all handlers
-	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler)
+	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler, container.WorkPaperItemHandler, container.WorkPaperHandler, container.VaccineHandler, container.WorkPaperSignatureHandler, container.CryptoHandler)
 
 	// Start server
 	fmt.Printf("🚀 Server running on port %s\n", cfg.Server.Port)
-	fmt.Printf("📝 Environment: %s\n", getEnvironment())
+	fmt.Printf("📝 Environment: %s\n", "development")
 
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
@@ -57,6 +57,3 @@ func customErrorHandler(c *fiber.Ctx, err error) error {
 	})
 }
 
-func getEnvironment() string {
-	return "development"
-}

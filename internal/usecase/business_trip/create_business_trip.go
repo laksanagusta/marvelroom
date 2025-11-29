@@ -7,7 +7,6 @@ import (
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
 	"sandbox/internal/domain/service"
-	"sandbox/internal/infrastructure/user"
 	"sandbox/pkg/database"
 )
 
@@ -17,8 +16,7 @@ type CreateBusinessTripUseCase struct {
 	db               database.DB
 }
 
-func NewCreateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, userClient user.ClientInterface, db database.DB) *CreateBusinessTripUseCase {
-	userService := service.NewUserService(userClient)
+func NewCreateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService, db database.DB) *CreateBusinessTripUseCase {
 	return &CreateBusinessTripUseCase{
 		businessTripRepo: businessTripRepo,
 		userService:      userService,

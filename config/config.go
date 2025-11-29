@@ -17,6 +17,7 @@ type Config struct {
 	Drive        DriveConfig
 	Notification NotificationConfig
 	User         UserConfig
+	CDC          CDCConfig
 	CORS         CORSConfig
 }
 
@@ -61,6 +62,13 @@ type NotificationConfig struct {
 type UserConfig struct {
 	BaseURL string
 	APIKey  string
+}
+
+// CDCConfig holds CDC API configuration
+type CDCConfig struct {
+	BaseURL    string
+	WebBaseURL string
+	APIKey     string
 }
 
 // CORSConfig holds CORS configuration
@@ -112,6 +120,11 @@ func Load() (*Config, error) {
 		User: UserConfig{
 			BaseURL: getEnv("USER_SERVICE_BASE_URL", "http://localhost:5001/api/v1/external"),
 			APIKey:  getEnv("USER_SERVICE_API_KEY", "56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8"),
+		},
+		CDC: CDCConfig{
+			BaseURL:    getEnv("CDC_API_BASE_URL", "https://travel.state.gov/_travel-resources/content/travel-resources/www.tripsofia.com/api/v1"),
+			WebBaseURL: getEnv("CDC_WEB_BASE_URL", "https://wwwnc.cdc.gov"),
+			APIKey:     getEnv("CDC_API_KEY", ""),
 		},
 		CORS: CORSConfig{
 			AllowOrigins: getEnv("CORS_ALLOW_ORIGINS", "http://localhost:3000"),

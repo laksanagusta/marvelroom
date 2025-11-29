@@ -10,7 +10,6 @@ import (
 
 	"sandbox/internal/domain/repository"
 	"sandbox/internal/domain/service"
-	"sandbox/internal/infrastructure/user"
 )
 
 type UpdateAssigneeUseCase struct {
@@ -18,8 +17,7 @@ type UpdateAssigneeUseCase struct {
 	userService     *service.UserService
 }
 
-func NewUpdateAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userClient user.ClientInterface) *UpdateAssigneeUseCase {
-	userService := service.NewUserService(userClient)
+func NewUpdateAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService) *UpdateAssigneeUseCase {
 	return &UpdateAssigneeUseCase{
 		businessTripRepo: businessTripRepo,
 		userService:     userService,

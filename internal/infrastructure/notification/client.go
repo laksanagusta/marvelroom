@@ -81,7 +81,7 @@ func (c *Client) SendNotification(ctx context.Context, opts entity.NotificationO
 		return nil
 	}
 
-	subject := "Meeting Created: " + extractMeetingTitle(meetingURL)
+	subject := "Meeting Created: New Meeting Scheduled"
 
 	body := fmt.Sprintf(`
 		<h2>Meeting Details</h2>
@@ -101,8 +101,4 @@ func (c *Client) SendNotification(ctx context.Context, opts entity.NotificationO
 	return nil
 }
 
-func extractMeetingTitle(meetingURL string) string {
-	// Extract meeting title from URL or use default
-	return "New Meeting Scheduled"
-}
 

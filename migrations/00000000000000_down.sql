@@ -1,0 +1,1 @@
+-- This file is intentionally empty - it represents the initial state

@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-
-	"github.com/google/uuid"
 )
 
 // Generator handles business trip number generation
@@ -80,34 +78,3 @@ func (g *Generator) GenerateNextNumber(ctx context.Context) (string, error) {
 	return nextNumber, nil
 }
 
-// GenerateBusinessTripNumberWithUUID generates a unique business trip number using UUID for collision avoidance
-// This is an alternative method if the sequence approach has issues
-func (g *Generator) GenerateBusinessTripNumberWithUUID(ctx context.Context) (string, error) {
-	// Generate a short UUID (first 6 characters) to fit within VARCHAR(10) constraint (BT-XXXXXX)
-	uuidStr := uuid.New().String()[:6]
-
-	// Create business trip number with UUID suffix
-	number := fmt.Sprintf("BT-%s", uuidStr)
-
-	// Check if this number already exists
-	var exists bool
-	checkQuery := `
-		SELECT EXISTS(
-			SELECT 1 FROM business_trips
-			WHERE business_trip_number = $1
-			AND deleted_at IS NULL
-		)
-	`
-
-	err := g.db.QueryRowContext(ctx, checkQuery, number).Scan(&exists)
-	if err != nil {
-		return "", fmt.Errorf("failed to check number existence: %w", err)
-	}
-
-	if exists {
-		// If it exists (very unlikely), try again
-		return g.GenerateBusinessTripNumberWithUUID(ctx)
-	}
-
-	return number, nil
-}

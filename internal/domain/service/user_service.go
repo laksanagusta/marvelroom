@@ -4,35 +4,35 @@ import (
 	"context"
 	"fmt"
 
-	"sandbox/internal/infrastructure/user"
+	"sandbox/internal/infrastructure"
 )
 
 // UserService handles user-related operations including fetching user data from external API
 type UserService struct {
-	userClient user.ClientInterface
+	identityService infrastructure.IdentityServiceInterface
 }
 
 // NewUserService creates a new user service
-func NewUserService(userClient user.ClientInterface) *UserService {
+func NewUserService(identityService infrastructure.IdentityServiceInterface) *UserService {
 	return &UserService{
-		userClient: userClient,
+		identityService: identityService,
 	}
 }
 
 // GetUserDataByEmployeeIDs fetches user data for multiple employee IDs (NIP) from external API
-func (s *UserService) GetUserDataByEmployeeIDs(ctx context.Context, employeeNumbers []string) (map[string]*user.CreateUserData, error) {
+func (s *UserService) GetUserDataByEmployeeIDs(ctx context.Context, employeeNumbers []string) (map[string]*infrastructure.CreateUserData, error) {
 	if len(employeeNumbers) == 0 {
-		return make(map[string]*user.CreateUserData), nil
+		return make(map[string]*infrastructure.CreateUserData), nil
 	}
 
 	// Fetch users from external API using NIP numbers
-	response, err := s.userClient.GetUsersByEmployeeIDs(ctx, employeeNumbers)
+	response, err := s.identityService.GetUsersByEmployeeIDs(ctx, employeeNumbers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch users from external API: %w", err)
 	}
 
 	// Convert to map for easy lookup using employee_number (NIP) as key
-	userDataMap := make(map[string]*user.CreateUserData)
+	userDataMap := make(map[string]*infrastructure.CreateUserData)
 	for _, apiUser := range response.Data {
 		userData := apiUser.ExtractCreateUserData()
 		userDataMap[userData.EmployeeNumber] = userData // Key by NIP (employee_number)
@@ -42,8 +42,8 @@ func (s *UserService) GetUserDataByEmployeeIDs(ctx context.Context, employeeNumb
 }
 
 // GetSingleUserDataByEmployeeID fetches user data for a single employee ID (NIP) from external API
-func (s *UserService) GetSingleUserDataByEmployeeID(ctx context.Context, employeeNumber string) (*user.CreateUserData, error) {
-	apiUser, err := s.userClient.GetSingleUserByEmployeeID(ctx, employeeNumber)
+func (s *UserService) GetSingleUserDataByEmployeeID(ctx context.Context, employeeNumber string) (*infrastructure.CreateUserData, error) {
+	apiUser, err := s.identityService.GetSingleUserByEmployeeID(ctx, employeeNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user from external API: %w", err)
 	}
@@ -52,13 +52,13 @@ func (s *UserService) GetSingleUserDataByEmployeeID(ctx context.Context, employe
 	return userData, nil
 }
 
-// ValidateEmployeeNumbers checks if all employee numbers (NIP) exist in the external user service
+// ValidateEmployeeNumbers checks if all employee numbers (NIP) exist in external user service
 func (s *UserService) ValidateEmployeeNumbers(ctx context.Context, employeeNumbers []string) (map[string]bool, error) {
 	if len(employeeNumbers) == 0 {
 		return make(map[string]bool), nil
 	}
 
-	response, err := s.userClient.GetUsersByEmployeeIDs(ctx, employeeNumbers)
+	response, err := s.identityService.GetUsersByEmployeeIDs(ctx, employeeNumbers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate employee numbers: %w", err)
 	}

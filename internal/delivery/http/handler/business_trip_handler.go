@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 
+	"sandbox/internal/delivery/http/middleware"
 	"sandbox/internal/usecase/business_trip"
 	"sandbox/pkg/pagination"
 
@@ -50,6 +51,23 @@ func NewBusinessTripHandler(
 
 // CreateBusinessTrip creates a new business trip
 func (h *BusinessTripHandler) CreateBusinessTrip(c *fiber.Ctx) error {
+	// Get authenticated user from context
+	user, err := middleware.GetAuthenticatedUser(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":   "Authentication required",
+			"details": err.Error(),
+		})
+	}
+
+	// Example: Use the authenticated user data
+	_ = user // User data can be used for authorization or logging
+	_ = user.ID
+	_ = user.Username
+	_ = user.GetFullName()
+	_ = user.GetPrimaryRole()
+	_ = user.Organization.Name
+
 	var req business_trip.BusinessTripRequest
 
 	if err := c.BodyParser(&req); err != nil {

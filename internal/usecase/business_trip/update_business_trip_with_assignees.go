@@ -7,7 +7,6 @@ import (
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
 	"sandbox/internal/domain/service"
-	"sandbox/internal/infrastructure/user"
 	"sandbox/pkg/database"
 )
 
@@ -17,8 +16,7 @@ type UpdateBusinessTripWithAssigneesUseCase struct {
 	db               database.DB
 }
 
-func NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo repository.BusinessTripRepository, userClient user.ClientInterface, db database.DB) *UpdateBusinessTripWithAssigneesUseCase {
-	userService := service.NewUserService(userClient)
+func NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService, db database.DB) *UpdateBusinessTripWithAssigneesUseCase {
 	return &UpdateBusinessTripWithAssigneesUseCase{
 		businessTripRepo: businessTripRepo,
 		userService:     userService,
