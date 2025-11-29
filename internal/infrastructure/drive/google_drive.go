@@ -25,7 +25,7 @@ type GoogleDriveService struct {
 // NewGoogleDriveService creates a new Google Drive service instance using service account
 func NewGoogleDriveService(credentialsFile string) (service.DriveService, error) {
 	if credentialsFile == "" {
-		credentialsFile = "dika-n8n-2db124fa64de.json"
+		credentialsFile = "dika-n8n-76c1c8c965e5.json"
 	}
 
 	ctx := context.Background()
