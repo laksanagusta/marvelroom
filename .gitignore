@@ -32,3 +32,6 @@ go.work
 .DS_Store
 Thumbs.db
 
+#JSON
+dika-n8n-2db124fa64de.json
+
