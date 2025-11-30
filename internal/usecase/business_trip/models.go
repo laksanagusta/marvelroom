@@ -20,17 +20,18 @@ func validateDateFormat(dateStr string) bool {
 
 // BusinessTripRequest represents the request body for creating/updating a business trip
 type BusinessTripRequest struct {
-	BusinessTripNumber string            `json:"business_trip_number,omitempty"`
-	StartDate          string            `json:"start_date"`
-	EndDate            string            `json:"end_date"`
-	ActivityPurpose    string            `json:"activity_purpose"`
-	DestinationCity    string            `json:"destination_city"`
-	SPDDate            string            `json:"spd_date"`
-	DepartureDate      string            `json:"departure_date"`
-	ReturnDate         string            `json:"return_date"`
-	Status             string            `json:"status"`
-	DocumentLink       string            `json:"document_link"`
-	Assignees          []AssigneeRequest `json:"assignees"`
+	BusinessTripNumber string               `json:"business_trip_number,omitempty"`
+	StartDate          string               `json:"start_date"`
+	EndDate            string               `json:"end_date"`
+	ActivityPurpose    string               `json:"activity_purpose"`
+	DestinationCity    string               `json:"destination_city"`
+	SPDDate            string               `json:"spd_date"`
+	DepartureDate      string               `json:"departure_date"`
+	ReturnDate         string               `json:"return_date"`
+	Status             string               `json:"status"`
+	DocumentLink       string               `json:"document_link"`
+	Verificators       []VerificatorRequest `json:"verificators"`
+	Assignees          []AssigneeRequest    `json:"assignees"`
 }
 
 func (r BusinessTripRequest) Validate() error {
@@ -46,6 +47,7 @@ func (r BusinessTripRequest) Validate() error {
 		validation.Field(&r.Status, validation.Length(0, 20)),
 		validation.Field(&r.DocumentLink, validation.Length(0, 500)),
 		validation.Field(&r.Assignees, validation.Required, validation.Length(1, 50), validation.Each()),
+	validation.Field(&r.Verificators, validation.Each()),
 	)
 	if err != nil {
 		return err
@@ -71,13 +73,21 @@ func (r BusinessTripRequest) Validate() error {
 	// Validate status if provided
 	if r.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":     true,
-			"ongoing":   true,
-			"completed": true,
-			"canceled":  true,
+			"draft":           true,
+			"ready_to_verify": true,
+			"ongoing":         true,
+			"completed":       true,
+			"canceled":        true,
 		}
 		if !validStatuses[r.Status] {
-			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
+			return validation.NewError("status", "must be one of: draft, ready_to_verify, ongoing, completed, canceled")
+		}
+	}
+
+	// Validate nested verificators manually as they have their own validation
+	for _, vr := range r.Verificators {
+		if err := vr.Validate(); err != nil {
+			return err
 		}
 	}
 
@@ -129,6 +139,14 @@ func (r BusinessTripRequest) ToEntity() (*entity.BusinessTrip, error) {
 	// Set document link
 	if r.DocumentLink != "" {
 		bt.UpdateDocumentLink(r.DocumentLink)
+	}
+
+	// Add verificators
+	for _, vr := range r.Verificators {
+		_, err := bt.AddVerificator(vr.UserID, vr.UserName, vr.EmployeeNumber, vr.Position)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Add assignees
@@ -213,6 +231,29 @@ type TransactionRequest struct {
 	TransportDetail string  `json:"transport_detail"`
 }
 
+// VerificatorRequest represents the request body for a verificator
+type VerificatorRequest struct {
+	UserID         string `json:"user_id"`
+	UserName       string `json:"user_name"`
+	EmployeeNumber string `json:"employee_number"`
+	Position       string `json:"position"`
+}
+
+func (r VerificatorRequest) Validate() error {
+	// Basic validation with invopop
+	err := validation.ValidateStruct(&r,
+		validation.Field(&r.UserID, validation.Required, validation.Length(1, 100)),
+		validation.Field(&r.UserName, validation.Required, validation.Length(1, 255)),
+		validation.Field(&r.EmployeeNumber, validation.Required, validation.Length(1, 50)),
+		validation.Field(&r.Position, validation.Required, validation.Length(1, 255)),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r TransactionRequest) Validate() error {
 	// Basic validation with invopop
 	err := validation.ValidateStruct(&r,
@@ -275,18 +316,19 @@ type UpdateBusinessTripRequest struct {
 
 // UpdateBusinessTripWithAssigneesRequest represents the request body for updating a business trip with full replace of assignees and transactions
 type UpdateBusinessTripWithAssigneesRequest struct {
-	BusinessTripID     string            `params:"tripId" json:"tripId"`
-	BusinessTripNumber string            `json:"business_trip_number"`
-	StartDate          string            `json:"start_date"`
-	EndDate            string            `json:"end_date"`
-	ActivityPurpose    string            `json:"activity_purpose"`
-	DestinationCity    string            `json:"destination_city"`
-	SPDDate            string            `json:"spd_date"`
-	DepartureDate      string            `json:"departure_date"`
-	ReturnDate         string            `json:"return_date"`
-	Status             string            `json:"status"`
-	DocumentLink       string            `json:"document_link"`
-	Assignees          []AssigneeRequest `json:"assignees"`
+	BusinessTripID     string               `params:"tripId" json:"tripId"`
+	BusinessTripNumber string               `json:"business_trip_number"`
+	StartDate          string               `json:"start_date"`
+	EndDate            string               `json:"end_date"`
+	ActivityPurpose    string               `json:"activity_purpose"`
+	DestinationCity    string               `json:"destination_city"`
+	SPDDate            string               `json:"spd_date"`
+	DepartureDate      string               `json:"departure_date"`
+	ReturnDate         string               `json:"return_date"`
+	Status             string               `json:"status"`
+	DocumentLink       string               `json:"document_link"`
+	Verificators       []VerificatorRequest `json:"verificators"`
+	Assignees          []AssigneeRequest    `json:"assignees"`
 }
 
 func (r UpdateBusinessTripRequest) Validate() error {
@@ -358,6 +400,7 @@ func (r UpdateBusinessTripWithAssigneesRequest) Validate() error {
 		validation.Field(&r.Status, validation.Length(0, 20)),
 		validation.Field(&r.DocumentLink, validation.Length(0, 500)),
 		validation.Field(&r.Assignees, validation.Required, validation.Length(1, 50), validation.Each()),
+	validation.Field(&r.Verificators, validation.Each()),
 	)
 	if err != nil {
 		return err
@@ -383,13 +426,14 @@ func (r UpdateBusinessTripWithAssigneesRequest) Validate() error {
 	// Validate status if provided
 	if r.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":     true,
-			"ongoing":   true,
-			"completed": true,
-			"canceled":  true,
+			"draft":           true,
+			"ready_to_verify": true,
+			"ongoing":         true,
+			"completed":       true,
+			"canceled":        true,
 		}
 		if !validStatuses[r.Status] {
-			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
+			return validation.NewError("status", "must be one of: draft, ready_to_verify, ongoing, completed, canceled")
 		}
 	}
 
@@ -446,6 +490,14 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 		bt.UpdateDocumentLink(r.DocumentLink)
 	}
 
+	// Add verificators
+	for _, vr := range r.Verificators {
+		_, err := bt.AddVerificator(vr.UserID, vr.UserName, vr.EmployeeNumber, vr.Position)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Add assignees
 	for _, assigneeReq := range r.Assignees {
 		assignee, err := bt.AddAssignee(assigneeReq.Name, assigneeReq.SPDNumber, assigneeReq.EmployeeID, assigneeReq.EmployeeName, assigneeReq.EmployeeNumber, assigneeReq.Position, assigneeReq.Rank)
@@ -484,21 +536,37 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 
 // BusinessTripResponse represents the response body for a business trip
 type BusinessTripResponse struct {
-	ID                 string             `json:"id"`
-	BusinessTripNumber string             `json:"business_trip_number"`
-	StartDate          string             `json:"start_date"`
-	EndDate            string             `json:"end_date"`
-	ActivityPurpose    string             `json:"activity_purpose"`
-	DestinationCity    string             `json:"destination_city"`
-	SPDDate            string             `json:"spd_date"`
-	DepartureDate      string             `json:"departure_date"`
-	ReturnDate         string             `json:"return_date"`
-	Status             string             `json:"status"`
-	DocumentLink       string             `json:"document_link"`
-	TotalCost          float64            `json:"total_cost"`
-	Assignees          []AssigneeResponse `json:"assignees"`
-	CreatedAt          string             `json:"created_at"`
-	UpdatedAt          string             `json:"updated_at"`
+	ID                 string                 `json:"id"`
+	BusinessTripNumber string                 `json:"business_trip_number"`
+	StartDate          string                 `json:"start_date"`
+	EndDate            string                 `json:"end_date"`
+	ActivityPurpose    string                 `json:"activity_purpose"`
+	DestinationCity    string                 `json:"destination_city"`
+	SPDDate            string                 `json:"spd_date"`
+	DepartureDate      string                 `json:"departure_date"`
+	ReturnDate         string                 `json:"return_date"`
+	Status             string                 `json:"status"`
+	DocumentLink       string                 `json:"document_link"`
+	TotalCost          float64                `json:"total_cost"`
+	Verificators       []VerificatorResponse  `json:"verificators"`
+	Assignees          []AssigneeResponse     `json:"assignees"`
+	CreatedAt          string                 `json:"created_at"`
+	UpdatedAt          string                 `json:"updated_at"`
+}
+
+// VerificatorResponse represents the response body for a verificator
+type VerificatorResponse struct {
+	ID               string     `json:"id"`
+	BusinessTripID   string     `json:"business_trip_id"`
+	UserID           string     `json:"user_id"`
+	UserName         string     `json:"user_name"`
+	EmployeeNumber   string     `json:"employee_number"`
+	Position         string     `json:"position"`
+	Status           string     `json:"status"`
+	VerifiedAt       *string    `json:"verified_at"`
+	VerificationNotes string     `json:"verification_notes"`
+	CreatedAt        string     `json:"created_at"`
+	UpdatedAt        string     `json:"updated_at"`
 }
 
 // AssigneeResponse represents the response body for an assignee
@@ -582,13 +650,14 @@ func (p QueryParams) Validate() error {
 	// Validate status if provided
 	if p.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":     true,
-			"ongoing":   true,
-			"completed": true,
-			"canceled":  true,
+			"draft":           true,
+			"ready_to_verify": true,
+			"ongoing":         true,
+			"completed":       true,
+			"canceled":        true,
 		}
 		if !validStatuses[p.Status] {
-			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
+			return validation.NewError("status", "must be one of: draft, ready_to_verify, ongoing, completed, canceled")
 		}
 	}
 
@@ -649,6 +718,29 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 		}
 	}
 
+	// Create verificators response
+	verificators := make([]VerificatorResponse, len(bt.GetVerificators()))
+	for i, verificator := range bt.GetVerificators() {
+		var verifiedAt *string
+		if verificator.GetVerifiedAt() != nil {
+			verified := verificator.GetVerifiedAt().Format(time.RFC3339)
+			verifiedAt = &verified
+		}
+		verificators[i] = VerificatorResponse{
+			ID:               verificator.GetID(),
+			BusinessTripID:   verificator.GetBusinessTripID(),
+			UserID:           verificator.GetUserID(),
+			UserName:         verificator.GetUserName(),
+			EmployeeNumber:   verificator.GetEmployeeNumber(),
+			Position:         verificator.GetPosition(),
+			Status:           string(verificator.GetStatus()),
+			VerifiedAt:       verifiedAt,
+			VerificationNotes: verificator.GetVerificationNotes(),
+			CreatedAt:        verificator.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:        verificator.UpdatedAt.Format(time.RFC3339),
+		}
+	}
+
 	return &BusinessTripResponse{
 		ID:                 bt.GetID(),
 		BusinessTripNumber: bt.GetBusinessTripNumber(),
@@ -662,6 +754,7 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 		Status:             string(bt.GetStatus()),
 		DocumentLink:       bt.GetDocumentLink(),
 		TotalCost:          bt.GetTotalCost(),
+		Verificators:       verificators,
 		Assignees:          assignees,
 		CreatedAt:          bt.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          bt.UpdatedAt.Format(time.RFC3339),

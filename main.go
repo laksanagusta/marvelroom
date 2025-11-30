@@ -32,7 +32,7 @@ func main() {
 	app.Use(middleware.ConfigureCORS(cfg.CORS.AllowOrigins))
 
 	// Setup routes with all handlers
-	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler, container.WorkPaperItemHandler, container.WorkPaperHandler, container.VaccineHandler, container.WorkPaperSignatureHandler, container.BusinessTripDashboardHandler)
+	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler, container.WorkPaperItemHandler, container.WorkPaperHandler, container.VaccineHandler, container.WorkPaperSignatureHandler, container.BusinessTripDashboardHandler, container.BusinessTripVerificationHandler)
 
 	// Start server
 	fmt.Printf("🚀 Server running on port %s\n", cfg.Server.Port)

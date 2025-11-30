@@ -88,4 +88,14 @@ type BusinessTripRepository interface {
 	DeleteTransaction(ctx context.Context, id string) error
 	GetTransactionsByAssigneeID(ctx context.Context, assigneeID string) ([]*entity.Transaction, error)
 	DeleteTransactionsByAssigneeIDs(ctx context.Context, assigneeIDs []string) error
+
+	// Verificator operations
+	CreateVerificator(ctx context.Context, verificator *entity.Verificator) (*entity.Verificator, error)
+	GetVerificatorByID(ctx context.Context, id string) (*entity.Verificator, error)
+	ListVerificators(ctx context.Context, params *pagination.QueryParams) ([]*entity.VerificatorWithBusinessTrip, int64, error)
+	GetVerificatorsByBusinessTripID(ctx context.Context, businessTripID string) ([]*entity.Verificator, error)
+	GetVerificatorByBusinessTripIDAndUserID(ctx context.Context, businessTripID, userID string) (*entity.Verificator, error)
+	UpdateVerificator(ctx context.Context, verificator *entity.Verificator) (*entity.Verificator, error)
+	DeleteVerificator(ctx context.Context, id string) error
+	DeleteVerificatorsByBusinessTripID(ctx context.Context, businessTripID string) error
 }

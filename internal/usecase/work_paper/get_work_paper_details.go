@@ -58,6 +58,7 @@ type WorkPaperSignatureResponse struct {
 	SignatureType string `json:"signature_type"`
 	Status        string `json:"status"`
 	Notes         string `json:"notes,omitempty"`
+	SignedAt      string `json:"signed_at,omitempty"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
 }
@@ -126,6 +127,7 @@ func (uc *GetWorkPaperDetailsUseCase) Execute(ctx context.Context, workPaperID s
 			SignatureType: signature.SignatureType,
 			Status:        signature.Status,
 			Notes:         signature.GetNotes(),
+			SignedAt:      signature.GetSignedAt().Format("2006-01-02T15:04:05Z07:00"),
 			CreatedAt:     signature.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:     signature.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}

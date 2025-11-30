@@ -9,9 +9,9 @@ import (
 
 // GetDashboardUseCase handles retrieving dashboard data for business trips
 type GetDashboardUseCase struct {
-	businessTripRepo    repository.BusinessTripRepository
-	assigneeRepo       repository.AssigneeRepository
-	transactionRepo     repository.BusinessTripTransactionRepository
+	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
+	transactionRepo  repository.BusinessTripTransactionRepository
 }
 
 // NewGetDashboardUseCase creates a new use case instance
@@ -22,59 +22,59 @@ func NewGetDashboardUseCase(
 ) *GetDashboardUseCase {
 	return &GetDashboardUseCase{
 		businessTripRepo: businessTripRepo,
-		assigneeRepo:       assigneeRepo,
-		transactionRepo:     transactionRepo,
+		assigneeRepo:     assigneeRepo,
+		transactionRepo:  transactionRepo,
 	}
 }
 
 // GetDashboardRequest represents the request parameters for dashboard data
 type GetDashboardRequest struct {
-	StartDate    *time.Time `json:"start_date,omitempty"`
-	EndDate      *time.Time `json:"end_date,omitempty"`
-	Destination   string      `json:"destination,omitempty"`
-	Status        string      `json:"status,omitempty"`
-	Limit         int         `json:"limit,omitempty" validate:"min=1,max=100"`
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
+	Destination string     `json:"destination,omitempty"`
+	Status      string     `json:"status,omitempty"`
+	Limit       int        `json:"limit,omitempty" validate:"min=1,max=100"`
 }
 
 // DashboardOverview represents the overview statistics
 type DashboardOverview struct {
 	TotalBusinessTrips     int64   `json:"total_business_trips"`
-	DraftBusinessTrips      int64   `json:"draft_business_trips"`
-	OngoingBusinessTrips    int64   `json:"ongoing_business_trips"`
-	CompletedBusinessTrips  int64   `json:"completed_business_trips"`
-	CanceledBusinessTrips   int64   `json:"canceled_business_trips"`
+	DraftBusinessTrips     int64   `json:"draft_business_trips"`
+	OngoingBusinessTrips   int64   `json:"ongoing_business_trips"`
+	CompletedBusinessTrips int64   `json:"completed_business_trips"`
+	CanceledBusinessTrips  int64   `json:"canceled_business_trips"`
 	UpcomingBusinessTrips  int64   `json:"upcoming_business_trps"`
-	TotalAssignees          int64   `json:"total_assignees"`
-	TotalTransactions       int64   `json:"total_transactions"`
+	TotalAssignees         int64   `json:"total_assignees"`
+	TotalTransactions      int64   `json:"total_transactions"`
 	TotalCost              float64 `json:"total_cost"`
-	AverageCostPerTrip      float64 `json:"average_cost_per_trip"`
+	AverageCostPerTrip     float64 `json:"average_cost_per_trip"`
 }
 
 // MonthlyStats represents monthly business trip statistics
 type MonthlyStats struct {
 	Month              string  `json:"month"`
-	Year                int     `json:"year"`
-	TotalTrips          int64   `json:"total_trips"`
-	CompletedTrips       int64   `json:"completed_trips"`
-	TotalCost           float64 `json:"total_cost"`
-	AverageCostPerTrip   float64 `json:"average_cost_per_trip"`
-	TopDestination       string  `json:"top_destination"`
+	Year               int     `json:"year"`
+	TotalTrips         int64   `json:"total_trips"`
+	CompletedTrips     int64   `json:"completed_trips"`
+	TotalCost          float64 `json:"total_cost"`
+	AverageCostPerTrip float64 `json:"average_cost_per_trip"`
+	TopDestination     string  `json:"top_destination"`
 }
 
 // DestinationStats represents statistics by destination
 type DestinationStats struct {
-	Destination      string  `json:"destination"`
-	TotalTrips       int64   `json:"total_trips"`
-	CompletedTrips    int64   `json:"completed_trips"`
-	TotalCost         float64 `json:"total_cost"`
+	Destination        string  `json:"destination"`
+	TotalTrips         int64   `json:"total_trips"`
+	CompletedTrips     int64   `json:"completed_trips"`
+	TotalCost          float64 `json:"total_cost"`
 	AverageCostPerTrip float64 `json:"average_cost_per_trip"`
-	LastTripDate      string  `json:"last_trip_date"`
+	LastTripDate       string  `json:"last_trip_date"`
 }
 
 // TransactionTypeStats represents statistics by transaction type
 type TransactionTypeStats struct {
 	TransactionType   string  `json:"transaction_type"`
-	TotalTransactions  int64   `json:"total_transactions"`
+	TotalTransactions int64   `json:"total_transactions"`
 	TotalAmount       float64 `json:"total_amount"`
 	AverageAmount     float64 `json:"average_amount"`
 	Percentage        float64 `json:"percentage"`
@@ -82,113 +82,118 @@ type TransactionTypeStats struct {
 
 // RecentBusinessTrip represents a recent business trip for dashboard
 type RecentBusinessTrip struct {
-	ID               string `json:"id"`
-	BusinessTripNumber string `json:"business_trip_number"`
-	ActivityPurpose   string `json:"activity_purpose"`
-	DestinationCity   string `json:"destination_city"`
-	StartDate         string `json:"start_date"`
-	EndDate           string `json:"end_date"`
-	Status            string `json:"status"`
-	AssigneeCount    int64  `json:"assignee_count"`
-	TotalCost         float64 `json:"total_cost"`
+	ID                 string  `json:"id"`
+	BusinessTripNumber string  `json:"business_trip_number"`
+	ActivityPurpose    string  `json:"activity_purpose"`
+	DestinationCity    string  `json:"destination_city"`
+	StartDate          string  `json:"start_date"`
+	EndDate            string  `json:"end_date"`
+	Status             string  `json:"status"`
+	AssigneeCount      int64   `json:"assignee_count"`
+	TotalCost          float64 `json:"total_cost"`
 }
 
 // GetDashboardResponse represents the dashboard response
 type GetDashboardResponse struct {
-	Overview            DashboardOverview        `json:"overview"`
-	MonthlyStats        []MonthlyStats           `json:"monthly_stats"`
-	DestinationStats     []DestinationStats       `json:"destination_stats"`
-	TransactionTypeStats []TransactionTypeStats  `json:"transaction_type_stats"`
-	RecentBusinessTrips []RecentBusinessTrip     `json:"recent_business_trips"`
+	Overview             DashboardOverview      `json:"overview"`
+	MonthlyStats         []MonthlyStats         `json:"monthly_stats"`
+	DestinationStats     []DestinationStats     `json:"destination_stats"`
+	TransactionTypeStats []TransactionTypeStats `json:"transaction_type_stats"`
+	RecentBusinessTrips  []RecentBusinessTrip   `json:"recent_business_trips"`
 }
 
 // Execute retrieves dashboard data
 func (uc *GetDashboardUseCase) Execute(ctx context.Context, req GetDashboardRequest) (*GetDashboardResponse, error) {
-	// For now, implement simple dashboard without complex queries to avoid compilation errors
 	// Get overview statistics using existing repository methods
 	overview, err := uc.getOverview(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create simplified dashboard response
-	monthlyStats := []MonthlyStats{}
-	destinationStats := []DestinationStats{}
-	transactionTypeStats := []TransactionTypeStats{}
-	recentTrips := []RecentBusinessTrip{}
+	// Get monthly statistics
+	monthlyStats, err := uc.getMonthlyStats(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get destination statistics
+	destinationStats, err := uc.getDestinationStats(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get transaction type statistics
+	transactionTypeStats, err := uc.getTransactionTypeStats(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get recent business trips
+	recentTrips, err := uc.getRecentBusinessTrips(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
 	return &GetDashboardResponse{
-		Overview:            *overview,
-		MonthlyStats:        monthlyStats,
+		Overview:             *overview,
+		MonthlyStats:         monthlyStats,
 		DestinationStats:     destinationStats,
 		TransactionTypeStats: transactionTypeStats,
-		RecentBusinessTrips: recentTrips,
+		RecentBusinessTrips:  recentTrips,
 	}, nil
 }
 
 // getOverview retrieves overall dashboard statistics
 func (uc *GetDashboardUseCase) getOverview(ctx context.Context, req GetDashboardRequest) (*DashboardOverview, error) {
-	// Use existing repository methods to get counts
-	total, _, err := uc.businessTripRepo.List(ctx, nil)
+	// Get status counts using repository method
+	statusCounts, err := uc.businessTripRepo.GetStatusCounts(ctx, req.StartDate, req.EndDate, req.Destination)
 	if err != nil {
 		return nil, err
 	}
 
-	var totalTrips int64 = 0
-	var draftTrips int64 = 0
-	var ongoingTrips int64 = 0
-	var completedTrips int64 = 0
-	var canceledTrips int64 = 0
-	var totalCost float64 = 0
-	var totalAssignees int = 0
-	var totalTransactions int = 0
+	// Get total cost using repository method
+	totalCost, err := uc.businessTripRepo.GetTotalCost(ctx, req.StartDate, req.EndDate, req.Destination)
+	if err != nil {
+		return nil, err
+	}
 
-	// Process business trips to calculate overview
-	for _, trip := range total {
-		totalTrips++
+	// Get total assignees using repository method
+	totalAssignees, err := uc.businessTripRepo.GetTotalCount(ctx, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
 
-		switch trip.Status {
-		case "draft":
-			draftTrips++
-		case "ongoing":
-			ongoingTrips++
-		case "completed":
-			completedTrips++
-		case "canceled":
-			canceledTrips++
-		}
+	// Get upcoming trips count
+	upcomingCount, err := uc.businessTripRepo.GetUpcomingCount(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-		// Get assignees and transactions for this trip
-		assignees, err := uc.assigneeRepo.GetAssigneesByBusinessTripID(ctx, trip.ID)
-		if err == nil {
-			totalAssignees += len(assignees)
-			// Calculate total cost from transactions for each assignee
-			for _, assignee := range assignees {
-				transactions, err := uc.transactionRepo.GetTransactionsByAssigneeID(ctx, assignee.ID)
-				if err == nil {
-					totalTransactions += len(transactions)
-					for _, transaction := range transactions {
-						totalCost += transaction.Subtotal
-					}
-				}
-			}
+	// Get total transactions count
+	var totalTransactions int64 = 0
+	if transactionTypeStats, err := uc.transactionRepo.GetTypeStats(ctx, req.StartDate, req.EndDate); err == nil {
+		for _, stat := range transactionTypeStats {
+			totalTransactions += stat.TotalTransactions
 		}
 	}
 
-	// Calculate upcoming trips count (simplified)
-	var upcomingCount int64 = 0
-	// For now, return simplified overview
+	// Calculate average cost safely to avoid divide by zero
+	var averageCost float64
+	if statusCounts.Total > 0 {
+		averageCost = totalCost / float64(statusCounts.Total)
+	}
+
 	return &DashboardOverview{
-		TotalBusinessTrips:     totalTrips,
-		DraftBusinessTrips:      draftTrips,
-		OngoingBusinessTrips:    ongoingTrips,
-		CompletedBusinessTrips:  completedTrips,
-		CanceledBusinessTrips:   canceledTrips,
+		TotalBusinessTrips:     statusCounts.Total,
+		DraftBusinessTrips:     statusCounts.Draft,
+		OngoingBusinessTrips:   statusCounts.Ongoing,
+		CompletedBusinessTrips: statusCounts.Completed,
+		CanceledBusinessTrips:  statusCounts.Canceled,
 		UpcomingBusinessTrips:  upcomingCount,
-		TotalAssignees:          int64(totalAssignees),
-		TotalTransactions:       int64(totalTransactions),
+		TotalAssignees:         totalAssignees,
+		TotalTransactions:      totalTransactions,
 		TotalCost:              totalCost,
-		AverageCostPerTrip:      totalCost / float64(totalTrips),
+		AverageCostPerTrip:     averageCost,
 	}, nil
 }
 
@@ -212,12 +217,12 @@ func (uc *GetDashboardUseCase) getMonthlyStats(ctx context.Context, req GetDashb
 
 		monthlyStats = append(monthlyStats, MonthlyStats{
 			Month:              data.Month,
-			Year:                data.Year,
-			TotalTrips:          data.TotalTrips,
-			CompletedTrips:       data.CompletedTrips,
-			TotalCost:           data.TotalCost,
-			AverageCostPerTrip:   averageCost,
-			TopDestination:       data.TopDestination,
+			Year:               data.Year,
+			TotalTrips:         data.TotalTrips,
+			CompletedTrips:     data.CompletedTrips,
+			TotalCost:          data.TotalCost,
+			AverageCostPerTrip: averageCost,
+			TopDestination:     data.TopDestination,
 		})
 	}
 
@@ -239,12 +244,12 @@ func (uc *GetDashboardUseCase) getDestinationStats(ctx context.Context, req GetD
 		}
 
 		destinationStats = append(destinationStats, DestinationStats{
-			Destination:      data.Destination,
-			TotalTrips:       data.TotalTrips,
-			CompletedTrips:    data.CompletedTrips,
-			TotalCost:         data.TotalCost,
+			Destination:        data.Destination,
+			TotalTrips:         data.TotalTrips,
+			CompletedTrips:     data.CompletedTrips,
+			TotalCost:          data.TotalCost,
 			AverageCostPerTrip: averageCost,
-			LastTripDate:      data.LastTripDate.Format("2006-01-02"),
+			LastTripDate:       data.LastTripDate.Format("2006-01-02"),
 		})
 	}
 
@@ -273,7 +278,7 @@ func (uc *GetDashboardUseCase) getTransactionTypeStats(ctx context.Context, req 
 
 		transactionTypeStats = append(transactionTypeStats, TransactionTypeStats{
 			TransactionType:   data.TransactionType,
-			TotalTransactions:  data.TotalTransactions,
+			TotalTransactions: data.TotalTransactions,
 			TotalAmount:       data.TotalAmount,
 			AverageAmount:     data.AverageAmount,
 			Percentage:        percentage,
@@ -300,15 +305,15 @@ func (uc *GetDashboardUseCase) getRecentBusinessTrips(ctx context.Context, req G
 	var trips []RecentBusinessTrip
 	for _, trip := range recentTrips {
 		trips = append(trips, RecentBusinessTrip{
-			ID:               trip.ID.String(),
+			ID:                 trip.ID.String(),
 			BusinessTripNumber: trip.BusinessTripNumber,
-			ActivityPurpose:   trip.ActivityPurpose,
-			DestinationCity:   trip.DestinationCity,
-			StartDate:         trip.StartDate.Format("2006-01-02"),
-			EndDate:           trip.EndDate.Format("2006-01-02"),
-			Status:            string(trip.Status),
-			AssigneeCount:    trip.AssigneeCount,
-			TotalCost:         trip.TotalCost,
+			ActivityPurpose:    trip.ActivityPurpose,
+			DestinationCity:    trip.DestinationCity,
+			StartDate:          trip.StartDate.Format("2006-01-02"),
+			EndDate:            trip.EndDate.Format("2006-01-02"),
+			Status:             string(trip.Status),
+			AssigneeCount:      trip.AssigneeCount,
+			TotalCost:          trip.TotalCost,
 		})
 	}
 

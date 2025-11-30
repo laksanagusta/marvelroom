@@ -126,6 +126,71 @@ const (
 		DELETE FROM assignees
 		WHERE business_trip_id = $1
 	`
+
+	// Verificator SQL queries
+	insertVerificator = `
+		INSERT INTO business_trip_verificators (
+			id, business_trip_id, user_id, user_name, employee_number, position, status,
+			verification_notes, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id
+	`
+
+	findVerificatorByID = `
+		SELECT
+			v.id, v.business_trip_id, v.user_id, v.user_name, v.employee_number, v.position,
+			v.status, v.verified_at, v.verification_notes, v.created_at, v.updated_at
+		FROM business_trip_verificators v
+		WHERE v.id = $1 AND v.deleted_at IS NULL
+	`
+
+	findVerificatorsByBusinessTripID = `
+		SELECT
+			v.id, v.business_trip_id, v.user_id, v.user_name, v.employee_number, v.position,
+			v.status, v.verified_at, v.verification_notes, v.created_at, v.updated_at
+		FROM business_trip_verificators v
+		WHERE v.business_trip_id = $1 AND v.deleted_at IS NULL
+		ORDER BY v.created_at
+	`
+
+	findVerificators = `
+		SELECT
+			v.id, v.business_trip_id, v.user_id, v.user_name, v.employee_number, v.position,
+			v.status, v.verified_at, v.verification_notes, v.created_at, v.updated_at,
+			bt.business_trip_number, bt.start_date, bt.end_date, bt.activity_purpose,
+			bt.destination_city, bt.spd_date, bt.departure_date, bt.return_date,
+			bt.status as business_trip_status, bt.document_link
+		FROM business_trip_verificators v
+		LEFT JOIN business_trips bt ON v.business_trip_id = bt.id
+	`
+
+	findVerificatorByBusinessTripIDAndUserID = `
+		SELECT
+			v.id, v.business_trip_id, v.user_id, v.user_name, v.employee_number, v.position,
+			v.status, v.verified_at, v.verification_notes, v.created_at, v.updated_at
+		FROM business_trip_verificators v
+		WHERE v.business_trip_id = $1 AND v.user_id = $2 AND v.deleted_at IS NULL
+		ORDER BY v.created_at
+		LIMIT 1
+	`
+
+	updateVerificator = `
+		UPDATE business_trip_verificators
+		SET status = $2, verification_notes = $3, verified_at = $4, updated_at = $5
+		WHERE id = $1
+	`
+
+	deleteVerificator = `
+		UPDATE business_trip_verificators
+		SET deleted_at = $1
+		WHERE id = $2
+	`
+
+	deleteVerificatorsByBusinessTripID = `
+		UPDATE business_trip_verificators
+		SET deleted_at = $1
+		WHERE business_trip_id = $2
+	`
 )
 
 // NewBusinessTripRepository creates a new instance of BusinessTripRepository
@@ -229,6 +294,14 @@ func (r *businessTripRepository) GetByID(ctx context.Context, id string) (*entit
 	}
 
 	bt.Assignees = assignees
+
+	// Get verificators
+	verificators, err := r.GetVerificatorsByBusinessTripID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get verificators: %w", err)
+	}
+
+	bt.Verificators = verificators
 
 	return &bt, nil
 }
@@ -709,62 +782,591 @@ func (r *businessTripRepository) DeleteTransactionsByAssigneeIDs(ctx context.Con
 
 // GetDestinationStats gets destination statistics for the dashboard
 func (r *businessTripRepository) GetDestinationStats(ctx context.Context, startDate, endDate *time.Time, destination string) ([]*repository.DestinationData, error) {
-	// For now, return empty slice as a placeholder implementation
-	// TODO: Implement actual destination statistics query
-	return []*repository.DestinationData{}, nil
+	query := `
+		SELECT
+			bt.destination_city,
+			COUNT(*) as total_trips,
+			COUNT(*) FILTER (WHERE bt.status = 'completed') as completed_trips,
+			COALESCE(SUM(t.subtotal), 0) as total_cost,
+			MAX(bt.start_date) as last_trip_date
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		LEFT JOIN assignee_transactions t ON a.id = t.assignee_id AND t.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+	`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND bt.start_date >= $%d", argIndex)
+		args = append(args, *startDate)
+		argIndex++
+	}
+
+	if endDate != nil {
+		query += fmt.Sprintf(" AND bt.end_date <= $%d", argIndex)
+		args = append(args, *endDate)
+		argIndex++
+	}
+
+	if destination != "" {
+		query += fmt.Sprintf(" AND bt.destination_city ILIKE $%d", argIndex)
+		args = append(args, "%"+destination+"%")
+		argIndex++
+	}
+
+	query += " GROUP BY bt.destination_city ORDER BY total_cost DESC"
+
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get destination stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []*repository.DestinationData
+	for rows.Next() {
+		var stat repository.DestinationData
+		err := rows.Scan(
+			&stat.Destination,
+			&stat.TotalTrips,
+			&stat.CompletedTrips,
+			&stat.TotalCost,
+			&stat.LastTripDate,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan destination stat: %w", err)
+		}
+		stats = append(stats, &stat)
+	}
+
+	return stats, nil
 }
 
 // GetMonthlyStats gets monthly statistics for the dashboard
 func (r *businessTripRepository) GetMonthlyStats(ctx context.Context, startDate, endDate time.Time, destination string) ([]*repository.MonthlyData, error) {
-	// For now, return empty slice as a placeholder implementation
-	// TODO: Implement actual monthly statistics query
-	return []*repository.MonthlyData{}, nil
+	query := `
+		SELECT
+			TO_CHAR(bt.start_date, 'Month') as month,
+			EXTRACT(YEAR FROM bt.start_date) as year,
+			COUNT(*) as total_trips,
+			COUNT(*) FILTER (WHERE bt.status = 'completed') as completed_trips,
+			COALESCE(SUM(t.subtotal), 0) as total_cost,
+			MODE() WITHIN GROUP (ORDER BY bt.destination_city) as top_destination
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		LEFT JOIN assignee_transactions t ON a.id = t.assignee_id AND t.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+		AND bt.start_date >= $1 AND bt.start_date <= $2
+	`
+
+	args := []interface{}{startDate, endDate}
+	argIndex := 3
+
+	if destination != "" {
+		query += fmt.Sprintf(" AND bt.destination_city ILIKE $%d", argIndex)
+		args = append(args, "%"+destination+"%")
+		argIndex++
+	}
+
+	query += " GROUP BY TO_CHAR(bt.start_date, 'Month'), EXTRACT(YEAR FROM bt.start_date) ORDER BY year DESC, month"
+
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get monthly stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []*repository.MonthlyData
+	for rows.Next() {
+		var stat repository.MonthlyData
+		err := rows.Scan(
+			&stat.Month,
+			&stat.Year,
+			&stat.TotalTrips,
+			&stat.CompletedTrips,
+			&stat.TotalCost,
+			&stat.TopDestination,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan monthly stat: %w", err)
+		}
+		stats = append(stats, &stat)
+	}
+
+	return stats, nil
 }
 
 // GetRecentWithSummary gets recent business trips with summary data
 func (r *businessTripRepository) GetRecentWithSummary(ctx context.Context, limit int) ([]*repository.RecentBusinessTripData, error) {
-	// For now, return empty slice as a placeholder implementation
-	// TODO: Implement actual recent business trips with summary query
-	return []*repository.RecentBusinessTripData{}, nil
+	query := `
+		SELECT
+			bt.id,
+			bt.business_trip_number,
+			bt.activity_purpose,
+			bt.destination_city,
+			bt.start_date,
+			bt.end_date,
+			bt.status,
+			COUNT(a.id) as assignee_count,
+			COALESCE(SUM(t.subtotal), 0) as total_cost
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		LEFT JOIN assignee_transactions t ON a.id = t.assignee_id AND t.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+		GROUP BY bt.id, bt.business_trip_number, bt.activity_purpose, bt.destination_city,
+			bt.start_date, bt.end_date, bt.status
+		ORDER BY bt.created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.QueryxContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent business trips with summary: %w", err)
+	}
+	defer rows.Close()
+
+	var trips []*repository.RecentBusinessTripData
+	for rows.Next() {
+		var trip repository.RecentBusinessTripData
+		err := rows.Scan(
+			&trip.ID,
+			&trip.BusinessTripNumber,
+			&trip.ActivityPurpose,
+			&trip.DestinationCity,
+			&trip.StartDate,
+			&trip.EndDate,
+			&trip.Status,
+			&trip.AssigneeCount,
+			&trip.TotalCost,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan recent business trip: %w", err)
+		}
+		trips = append(trips, &trip)
+	}
+
+	return trips, nil
 }
 
 // GetStatusCounts gets status counts for the dashboard
 func (r *businessTripRepository) GetStatusCounts(ctx context.Context, startDate, endDate *time.Time, destination string) (*repository.StatusCounts, error) {
-	// For now, return empty counts as a placeholder implementation
-	// TODO: Implement actual status counts query
-	return &repository.StatusCounts{
-		Total:     0,
-		Draft:     0,
-		Ongoing:   0,
-		Completed: 0,
-		Canceled:  0,
-	}, nil
+	query := `
+		SELECT
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE status = 'draft') as draft,
+			COUNT(*) FILTER (WHERE status = 'ongoing') as ongoing,
+			COUNT(*) FILTER (WHERE status = 'completed') as completed,
+			COUNT(*) FILTER (WHERE status = 'canceled') as canceled
+		FROM business_trips
+		WHERE deleted_at IS NULL
+	`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND start_date >= $%d", argIndex)
+		args = append(args, *startDate)
+		argIndex++
+	}
+
+	if endDate != nil {
+		query += fmt.Sprintf(" AND end_date <= $%d", argIndex)
+		args = append(args, *endDate)
+		argIndex++
+	}
+
+	if destination != "" {
+		query += fmt.Sprintf(" AND destination_city ILIKE $%d", argIndex)
+		args = append(args, "%"+destination+"%")
+		argIndex++
+	}
+
+	var counts repository.StatusCounts
+	err := r.db.QueryRowxContext(ctx, query, args...).Scan(
+		&counts.Total,
+		&counts.Draft,
+		&counts.Ongoing,
+		&counts.Completed,
+		&counts.Canceled,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status counts: %w", err)
+	}
+
+	return &counts, nil
 }
 
 // GetTotalCost gets total cost for the dashboard
 func (r *businessTripRepository) GetTotalCost(ctx context.Context, startDate, endDate *time.Time, destination string) (float64, error) {
-	// For now, return 0 as a placeholder implementation
-	// TODO: Implement actual total cost query
-	return 0.0, nil
+	query := `
+		SELECT COALESCE(SUM(t.subtotal), 0) as total_cost
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		LEFT JOIN assignee_transactions t ON a.id = t.assignee_id AND t.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+	`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND bt.start_date >= $%d", argIndex)
+		args = append(args, *startDate)
+		argIndex++
+	}
+
+	if endDate != nil {
+		query += fmt.Sprintf(" AND bt.end_date <= $%d", argIndex)
+		args = append(args, *endDate)
+		argIndex++
+	}
+
+	if destination != "" {
+		query += fmt.Sprintf(" AND bt.destination_city ILIKE $%d", argIndex)
+		args = append(args, "%"+destination+"%")
+		argIndex++
+	}
+
+	var totalCost float64
+	err := r.db.QueryRowxContext(ctx, query, args...).Scan(&totalCost)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total cost: %w", err)
+	}
+
+	return totalCost, nil
 }
 
 // GetTotalCount gets total count for the dashboard
 func (r *businessTripRepository) GetTotalCount(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
-	// For now, return 0 as a placeholder implementation
-	// TODO: Implement actual total count query
-	return 0, nil
+	query := `
+		SELECT COUNT(DISTINCT a.id) as total_count
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+	`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND bt.start_date >= $%d", argIndex)
+		args = append(args, *startDate)
+		argIndex++
+	}
+
+	if endDate != nil {
+		query += fmt.Sprintf(" AND bt.end_date <= $%d", argIndex)
+		args = append(args, *endDate)
+		argIndex++
+	}
+
+	var totalCount int64
+	err := r.db.QueryRowxContext(ctx, query, args...).Scan(&totalCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	return totalCount, nil
 }
 
 // GetTypeStats gets transaction type statistics for the dashboard
 func (r *businessTripRepository) GetTypeStats(ctx context.Context, startDate, endDate *time.Time) ([]*repository.TransactionTypeData, error) {
-	// For now, return empty slice as a placeholder implementation
-	// TODO: Implement actual type statistics query
-	return []*repository.TransactionTypeData{}, nil
+	query := `
+		SELECT
+			t.type,
+			COUNT(*) as total_transactions,
+			COALESCE(SUM(t.subtotal), 0) as total_amount,
+			COALESCE(AVG(t.subtotal), 0) as average_amount
+		FROM business_trips bt
+		LEFT JOIN assignees a ON bt.id = a.business_trip_id AND a.deleted_at IS NULL
+		LEFT JOIN assignee_transactions t ON a.id = t.assignee_id AND t.deleted_at IS NULL
+		WHERE bt.deleted_at IS NULL
+		AND t.type IS NOT NULL
+	`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND bt.start_date >= $%d", argIndex)
+		args = append(args, *startDate)
+		argIndex++
+	}
+
+	if endDate != nil {
+		query += fmt.Sprintf(" AND bt.end_date <= $%d", argIndex)
+		args = append(args, *endDate)
+		argIndex++
+	}
+
+	query += " GROUP BY t.type ORDER BY total_amount DESC"
+
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction type stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []*repository.TransactionTypeData
+	for rows.Next() {
+		var stat repository.TransactionTypeData
+		err := rows.Scan(
+			&stat.TransactionType,
+			&stat.TotalTransactions,
+			&stat.TotalAmount,
+			&stat.AverageAmount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction type stat: %w", err)
+		}
+		stats = append(stats, &stat)
+	}
+
+	return stats, nil
 }
 
 // GetUpcomingCount gets upcoming business trips count for the dashboard
 func (r *businessTripRepository) GetUpcomingCount(ctx context.Context) (int64, error) {
-	// For now, return 0 as a placeholder implementation
-	// TODO: Implement actual upcoming count query
-	return 0, nil
+	query := `
+		SELECT COUNT(*) as upcoming_count
+		FROM business_trips
+		WHERE deleted_at IS NULL
+		AND status IN ('draft', 'ongoing')
+		AND start_date > NOW()
+	`
+
+	var count int64
+	err := r.db.QueryRowxContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get upcoming count: %w", err)
+	}
+
+	return count, nil
+}
+
+// CreateVerificator creates a new verificator
+func (r *businessTripRepository) CreateVerificator(ctx context.Context, verificator *entity.Verificator) (*entity.Verificator, error) {
+	if verificator.ID == "" {
+		verificator.ID = uuid.New().String()
+	}
+
+	var returnedID string
+	now := time.Now()
+
+	err := r.db.GetContext(ctx, &returnedID, insertVerificator,
+		verificator.ID,
+		verificator.BusinessTripID,
+		verificator.UserID,
+		verificator.UserName,
+		verificator.EmployeeNumber,
+		verificator.Position,
+		verificator.Status,
+		verificator.VerificationNotes,
+		now,
+		now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create verificator: %w", err)
+	}
+
+	if returnedID != verificator.ID {
+		return nil, fmt.Errorf("returned ID %s does not match expected ID %s", returnedID, verificator.ID)
+	}
+
+	verificator.CreatedAt = now
+	verificator.UpdatedAt = now
+
+	return verificator, nil
+}
+
+// GetVerificatorByID retrieves a verificator by ID
+func (r *businessTripRepository) GetVerificatorByID(ctx context.Context, id string) (*entity.Verificator, error) {
+	var verificator entity.Verificator
+	err := r.db.GetContext(ctx, &verificator, findVerificatorByID, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get verificator: %w", err)
+	}
+
+	return &verificator, nil
+}
+
+// GetVerificatorsByBusinessTripID retrieves all verificators for a business trip
+func (r *businessTripRepository) GetVerificatorsByBusinessTripID(ctx context.Context, businessTripID string) ([]*entity.Verificator, error) {
+	rows, err := r.db.QueryxContext(ctx, findVerificatorsByBusinessTripID, businessTripID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query verificators: %w", err)
+	}
+	defer rows.Close()
+
+	var verificators []*entity.Verificator
+	for rows.Next() {
+		var verificator entity.Verificator
+		err := rows.StructScan(&verificator)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan verificator: %w", err)
+		}
+		verificators = append(verificators, &verificator)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return verificators, nil
+}
+
+// GetVerificatorByBusinessTripIDAndUserID retrieves a verificator by business trip ID and user ID
+func (r *businessTripRepository) GetVerificatorByBusinessTripIDAndUserID(ctx context.Context, businessTripID, userID string) (*entity.Verificator, error) {
+	var verificator entity.Verificator
+	err := r.db.GetContext(ctx, &verificator, findVerificatorByBusinessTripIDAndUserID, businessTripID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get verificator: %w", err)
+	}
+
+	return &verificator, nil
+}
+
+// UpdateVerificator updates a verificator
+func (r *businessTripRepository) UpdateVerificator(ctx context.Context, verificator *entity.Verificator) (*entity.Verificator, error) {
+	now := time.Now()
+
+	res, err := r.db.ExecContext(ctx, updateVerificator,
+		verificator.ID,
+		verificator.Status,
+		verificator.VerificationNotes,
+		verificator.VerifiedAt,
+		now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update verificator: %w", err)
+	}
+
+	rowAffected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowAffected == 0 {
+		return nil, fmt.Errorf("verificator with ID %s not found", verificator.ID)
+	}
+
+	verificator.UpdatedAt = now
+
+	return verificator, nil
+}
+
+// DeleteVerificator soft deletes a verificator
+func (r *businessTripRepository) DeleteVerificator(ctx context.Context, id string) error {
+	now := time.Now()
+
+	res, err := r.db.ExecContext(ctx, deleteVerificator, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete verificator: %w", err)
+	}
+
+	rowAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowAffected == 0 {
+		return fmt.Errorf("verificator with ID %s not found", id)
+	}
+
+	return nil
+}
+
+// DeleteVerificatorsByBusinessTripID soft deletes all verificators for a business trip
+func (r *businessTripRepository) DeleteVerificatorsByBusinessTripID(ctx context.Context, businessTripID string) error {
+	now := time.Now()
+
+	_, err := r.db.ExecContext(ctx, deleteVerificatorsByBusinessTripID, now, businessTripID)
+	if err != nil {
+		return fmt.Errorf("failed to delete verificators by business trip ID: %w", err)
+	}
+
+	return nil
+}
+
+// ListVerificators retrieves verificators with filtering and pagination using pagination package
+func (r *businessTripRepository) ListVerificators(ctx context.Context, params *pagination.QueryParams) ([]*entity.VerificatorWithBusinessTrip, int64, error) {
+	// Build count query
+	countBuilder := pagination.NewQueryBuilder("SELECT COUNT(*) FROM business_trip_verificators v LEFT JOIN business_trips bt ON v.business_trip_id = bt.id")
+	for _, filter := range params.Filters {
+		if err := countBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Always include deleted_at filter
+	countBuilder.AddFilter(pagination.Filter{
+		Field:    "v.deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	countQuery, countArgs := countBuilder.Build()
+
+	var totalCount int64
+	err := r.db.GetContext(ctx, &totalCount, countQuery, countArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Build main query
+	queryBuilder := pagination.NewQueryBuilder(findVerificators)
+
+	for _, filter := range params.Filters {
+		if err := queryBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Always include deleted_at filter
+	queryBuilder.AddFilter(pagination.Filter{
+		Field:    "v.deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, sort := range params.Sorts {
+		if err := queryBuilder.AddSort(sort); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	query, args := queryBuilder.Build()
+
+	// Add pagination
+	offset := (params.Pagination.Page - 1) * params.Pagination.Limit
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", params.Pagination.Limit, offset)
+
+	var verificators []*entity.VerificatorWithBusinessTrip
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var verificator entity.VerificatorWithBusinessTrip
+		if err := rows.StructScan(&verificator); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan verificator: %w", err)
+		}
+		verificators = append(verificators, &verificator)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return verificators, totalCount, nil
 }

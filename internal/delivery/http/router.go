@@ -9,9 +9,8 @@ import (
 )
 
 // SetupRoutes configures all application routes
-func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler) {
+func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler, businessTripVerificationHandler *handler.BusinessTripVerificationHandler) {
 	api := app.Group("/api")
-
 	api.Post("/upload", middleware.AuthMiddleware(), transactionHandler.UploadAndExtract)
 	api.Post("/upload/detailed", middleware.AuthMiddleware(), transactionHandler.UploadAndExtractDetailed)
 	api.Post("/report/excel", middleware.AuthMiddleware(), transactionHandler.GenerateRecapExcel)
@@ -20,16 +19,17 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 
 	api.Route("/v1/business-trips", func(r fiber.Router) {
 		r.Use(middleware.AuthMiddleware()) // Apply auth middleware to all business trips routes
+		r.Get("/dashboard", businessTripDashboardHandler.GetDashboard)
 		r.Post("/", businessTripHandler.CreateBusinessTrip)
 		r.Get("/", businessTripHandler.ListBusinessTrips)
+		r.Get("/verificators", businessTripVerificationHandler.ListVerificators)
 		r.Get("/:tripId", businessTripHandler.GetBusinessTrip)
 		r.Put("/:tripId", businessTripHandler.UpdateBusinessTrip)
 		r.Put("/:tripId/with-assignees", businessTripHandler.UpdateBusinessTripWithAssignees)
 		r.Delete("/:tripId", businessTripHandler.DeleteBusinessTrip)
+		r.Post("/:tripId/verify", businessTripVerificationHandler.VerifyBusinessTrip)
 
 		// Dashboard endpoint
-		r.Get("/dashboard", businessTripDashboardHandler.GetDashboard)
-
 		r.Route("/:tripId/assignees", func(r fiber.Router) {
 			r.Post("/", assigneeHandler.CreateAssignee)
 			r.Get("/", assigneeHandler.ListAssignees)
@@ -141,5 +141,5 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 
 // Backward compatibility function (deprecated)
 func SetupRoutesLegacy(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, masterLakipItemHandler *deskHandler.WorkPaperItemHandler, paperWorkHandler *deskHandler.WorkPaperHandler) {
-	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, paperWorkHandler, nil, nil, nil)
+	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, paperWorkHandler, nil, nil, nil, nil)
 }

@@ -101,6 +101,15 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 			}
 		}
 
+		// Create verificators in database
+		for _, verificator := range businessTrip.Verificators {
+			verificator.BusinessTripID = businessTrip.ID
+			_, err := businessTripRepoWithTx.CreateVerificator(ctx, verificator)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {

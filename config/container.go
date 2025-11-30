@@ -38,6 +38,7 @@ type Container struct {
 	AssigneeHandler                *handler.AssigneeHandler
 	BusinessTripTransactionHandler *handler.BusinessTripTransactionHandler
 	BusinessTripDashboardHandler   *handler.BusinessTripDashboardHandler
+	BusinessTripVerificationHandler *handler.BusinessTripVerificationHandler
 	WorkPaperItemHandler           *deskHandler.WorkPaperItemHandler
 	WorkPaperHandler               *deskHandler.WorkPaperHandler
 	WorkPaperSignatureHandler      *handler.WorkPaperSignatureHandler
@@ -66,6 +67,8 @@ type Container struct {
 	GetBusinessTripSummaryUseCase          *businessTripUC.GetBusinessTripSummaryUseCase
 	GetAssigneeSummaryUseCase              *businessTripUC.GetAssigneeSummaryUseCase
 	GetDashboardUseCase                    *businessTripUC.GetDashboardUseCase
+	VerifyBusinessTripUseCase              *businessTripUC.VerifyBusinessTripUseCase
+	ListVerificatorsUseCase               *businessTripUC.ListVerificatorsUseCase
 
 	// Assignee Use Cases
 	GetAssigneeUseCase    *businessTripUC.GetAssigneeUseCase
@@ -184,6 +187,10 @@ func NewContainer(cfg *Config) *Container {
 	// New Dashboard Use Case
 	getDashboardUseCase := businessTripUC.NewGetDashboardUseCase(businessTripRepo, assigneeRepo, transactionRepo)
 
+	// New Verification Use Cases
+	verifyBusinessTripUseCase := businessTripUC.NewVerifyBusinessTripUseCase(businessTripRepo, userService, dbWrapper)
+	listVerificatorsUseCase := businessTripUC.NewListVerificatorsUseCase(businessTripRepo)
+
 	// New Transaction Use Cases
 	getTransactionUseCase := businessTripUC.NewGetTransactionUseCase(businessTripRepo)
 	updateTransactionUseCase := businessTripUC.NewUpdateTransactionUseCase(businessTripRepo, assigneeRepo)
@@ -247,6 +254,12 @@ func NewContainer(cfg *Config) *Container {
 	// Business Trip Dashboard handler
 	businessTripDashboardHandler := handler.NewBusinessTripDashboardHandler(
 		getDashboardUseCase,
+	)
+
+	// Business Trip Verification handler
+	businessTripVerificationHandler := handler.NewBusinessTripVerificationHandler(
+		verifyBusinessTripUseCase,
+		listVerificatorsUseCase,
 	)
 
 	// Desk Module Infrastructure
@@ -361,6 +374,7 @@ func NewContainer(cfg *Config) *Container {
 		AssigneeHandler:                assigneeHandler,
 		BusinessTripTransactionHandler: businessTripTransactionHandler,
 		BusinessTripDashboardHandler:   businessTripDashboardHandler,
+		BusinessTripVerificationHandler: businessTripVerificationHandler,
 		WorkPaperItemHandler:           workPaperItemHandler,
 		WorkPaperHandler:               workPaperHandler,
 		WorkPaperSignatureHandler:      workPaperSignatureHandler,
@@ -378,6 +392,8 @@ func NewContainer(cfg *Config) *Container {
 		GetBusinessTripSummaryUseCase:  getBusinessTripSummaryUseCase,
 		GetAssigneeSummaryUseCase:      getAssigneeSummaryUseCase,
 		GetDashboardUseCase:           getDashboardUseCase,
+		VerifyBusinessTripUseCase:     verifyBusinessTripUseCase,
+		ListVerificatorsUseCase:      listVerificatorsUseCase,
 		GetAssigneeUseCase:             getAssigneeUseCase,
 		UpdateAssigneeUseCase:          updateAssigneeUseCase,
 		DeleteAssigneeUseCase:          deleteAssigneeUseCase,
