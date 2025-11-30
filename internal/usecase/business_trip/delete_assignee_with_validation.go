@@ -9,11 +9,13 @@ import (
 
 type DeleteAssigneeWithValidationUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewDeleteAssigneeWithValidationUseCase(businessTripRepo repository.BusinessTripRepository) *DeleteAssigneeWithValidationUseCase {
+func NewDeleteAssigneeWithValidationUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *DeleteAssigneeWithValidationUseCase {
 	return &DeleteAssigneeWithValidationUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
@@ -45,7 +47,7 @@ func (uc *DeleteAssigneeWithValidationUseCase) Execute(ctx context.Context, req 
 	}
 
 	// Verify assignee exists and belongs to the business trip
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, req.AssigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, req.AssigneeID)
 	if err != nil {
 		return fmt.Errorf("assignee not found")
 	}
@@ -55,7 +57,7 @@ func (uc *DeleteAssigneeWithValidationUseCase) Execute(ctx context.Context, req 
 	}
 
 	// Delete assignee (this will also cascade delete transactions)
-	err = uc.businessTripRepo.DeleteAssignee(ctx, req.AssigneeID)
+	err = uc.assigneeRepo.DeleteAssignee(ctx, req.AssigneeID)
 	if err != nil {
 		return fmt.Errorf("failed to delete assignee: %w", err)
 	}

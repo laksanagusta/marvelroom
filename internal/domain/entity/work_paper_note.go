@@ -10,27 +10,27 @@ import (
 
 // WorkPaperNote represents a note within a work paper
 type WorkPaperNote struct {
-	ID             uuid.UUID     `db:"id"`
-	WorkPaperID    uuid.UUID     `db:"work_paper_id"`
-	MasterItemID   uuid.UUID     `db:"master_item_id"`
-	GDriveLink     *string       `db:"gdrive_link"`           // Nullable Google Drive link
-	IsValid        *bool         `db:"is_valid"`              // Nullable Y/T result from LLM
-	Notes          *string       `db:"notes"`                 // Nullable notes from LLM
-	LastLLMResponse *LLMResponse `db:"last_llm_response"`    // Nullable raw LLM response
-	CreatedAt      time.Time     `db:"created_at"`
-	UpdatedAt      time.Time     `db:"updated_at"`
-	DeletedAt      *time.Time    `db:"deleted_at"`
+	ID              uuid.UUID    `db:"id"`
+	WorkPaperID     uuid.UUID    `db:"work_paper_id"`
+	MasterItemID    uuid.UUID    `db:"master_item_id"`
+	GDriveLink      *string      `db:"gdrive_link"`       // Nullable Google Drive link
+	IsValid         *bool        `db:"is_valid"`          // Nullable Y/T result from LLM
+	Notes           *string      `db:"notes"`             // Nullable notes from LLM
+	LastLLMResponse *LLMResponse `db:"last_llm_response"` // Nullable raw LLM response
+	CreatedAt       time.Time    `db:"created_at"`
+	UpdatedAt       time.Time    `db:"updated_at"`
+	DeletedAt       *time.Time   `db:"deleted_at"`
 
 	// Relations
-	MasterItem   *WorkPaperItem  `db:"-"`
+	MasterItem *WorkPaperItem `db:"-"`
 }
 
 // LLMResponse represents the response structure from LLM
 type LLMResponse struct {
-	Note     string `json:"note"`
-	IsValid  bool   `json:"isValid"`
-	Model    string `json:"model,omitempty"`
-	Usage    *Usage `json:"usage,omitempty"`
+	Note    string `json:"note"`
+	IsValid bool   `json:"isValid"`
+	Model   string `json:"model,omitempty"`
+	Usage   *Usage `json:"usage,omitempty"`
 }
 
 // Usage represents token usage from LLM API

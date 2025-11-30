@@ -80,18 +80,19 @@ func (r *workPaperItemRepository) GetByNumber(ctx context.Context, number string
 func (r *workPaperItemRepository) Update(ctx context.Context, item *entity.WorkPaperItem) (*entity.WorkPaperItem, error) {
 	query := `
 		UPDATE work_paper_items
-		SET type = $2, number = $3, statement = $4, explanation = $5, filling_guide = $6, parent_id = $7, level = $8, sort_order = $9, updated_at = $10
+		SET type = $2, number = $3, statement = $4, explanation = $5, filling_guide = $6, parent_id = $7, level = $8, sort_order = $9, is_active = $10, updated_at = $11
 		WHERE id = $1
 	`
 
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx, query,
 		item.ID, item.Type, item.Number, item.Statement, item.Explanation, item.FillingGuide,
-		item.ParentID, item.Level, item.SortOrder, now,
+		item.ParentID, item.Level, item.SortOrder, item.IsActive, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper item: %w", err)
 	}
+
 	item.UpdatedAt = now
 	return item, nil
 }

@@ -8,32 +8,32 @@ import (
 )
 
 type GetAssigneeUseCase struct {
-	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo repository.AssigneeRepository
 }
 
-func NewGetAssigneeUseCase(businessTripRepo repository.BusinessTripRepository) *GetAssigneeUseCase {
+func NewGetAssigneeUseCase(assigneeRepo repository.AssigneeRepository) *GetAssigneeUseCase {
 	return &GetAssigneeUseCase{
-		businessTripRepo: businessTripRepo,
+		assigneeRepo: assigneeRepo,
 	}
 }
 
 type GetAssigneeResponse struct {
-	ID            string              `json:"id"`
-	BusinessTripID string             `json:"businessTripId"`
-	Name          string              `json:"name"`
-	SPDNumber     string              `json:"spdNumber"`
-	EmployeeID    string              `json:"employeeId"`
-	EmployeeName  string              `json:"employeeName"`
-	Position      string              `json:"position"`
-	Rank          string              `json:"rank"`
-	TotalCost     float64             `json:"totalCost"`
-	Transactions  []TransactionResponse `json:"transactions"`
-	CreatedAt     string              `json:"createdAt"`
-	UpdatedAt     string              `json:"updatedAt"`
+	ID             string                `json:"id"`
+	BusinessTripID string                `json:"businessTripId"`
+	Name           string                `json:"name"`
+	SPDNumber      string                `json:"spdNumber"`
+	EmployeeID     string                `json:"employeeId"`
+	EmployeeName   string                `json:"employeeName"`
+	Position       string                `json:"position"`
+	Rank           string                `json:"rank"`
+	TotalCost      float64               `json:"totalCost"`
+	Transactions   []TransactionResponse `json:"transactions"`
+	CreatedAt      string                `json:"createdAt"`
+	UpdatedAt      string                `json:"updatedAt"`
 }
 
 func (uc *GetAssigneeUseCase) Execute(ctx context.Context, assigneeID string) (*GetAssigneeResponse, error) {
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, assigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, assigneeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get assignee: %w", err)
 	}
@@ -59,17 +59,17 @@ func (uc *GetAssigneeUseCase) Execute(ctx context.Context, assigneeID string) (*
 	}
 
 	return &GetAssigneeResponse{
-		ID:            assignee.ID,
+		ID:             assignee.ID,
 		BusinessTripID: assignee.BusinessTripID,
-		Name:          assignee.Name,
-		SPDNumber:     assignee.SPDNumber,
-		EmployeeID:    assignee.EmployeeID,
-		EmployeeName:  assignee.EmployeeName,
-		Position:      assignee.Position,
-		Rank:          assignee.Rank,
-		TotalCost:     assignee.GetTotalCost(),
-		Transactions:  transactionResponses,
-		CreatedAt:     assignee.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:     assignee.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Name:           assignee.Name,
+		SPDNumber:      assignee.SPDNumber,
+		EmployeeID:     assignee.EmployeeID,
+		EmployeeName:   assignee.EmployeeName,
+		Position:       assignee.Position,
+		Rank:           assignee.Rank,
+		TotalCost:      assignee.GetTotalCost(),
+		Transactions:   transactionResponses,
+		CreatedAt:      assignee.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:      assignee.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, nil
 }

@@ -20,10 +20,10 @@ func NewUpdateWorkPaperNoteUseCase(deskService service.DeskService) *UpdateWorkP
 
 // UpdateWorkPaperNoteRequest represents the request payload for updating work paper note
 type UpdateWorkPaperNoteRequest struct {
-	ID        string `json:"id" validate:"required"`
+	ID         string `json:"id" validate:"required"`
 	GDriveLink string `json:"gdrive_link,omitempty"`
-	IsValid   *bool  `json:"is_valid,omitempty"`
-	Notes     string `json:"notes,omitempty"`
+	IsValid    *bool  `json:"is_valid,omitempty"`
+	Notes      string `json:"notes,omitempty"`
 }
 
 // UpdateWorkPaperNoteResponse represents the response payload for updating work paper note

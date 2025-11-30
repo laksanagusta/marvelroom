@@ -8,24 +8,24 @@ import (
 
 // WorkPaper represents a working paper per organization per semester
 type WorkPaper struct {
-	ID             uuid.UUID      `db:"id"`
-	OrganizationID uuid.UUID      `db:"organization_id"`
-	Year           int            `db:"year"`
-	Semester       int            `db:"semester"` // 1 or 2
-	Status         string         `db:"status"`   // draft, ongoing, ready_to_sign, completed
-	CreatedAt      time.Time      `db:"created_at"`
-	UpdatedAt      time.Time      `db:"updated_at"`
-	DeletedAt      *time.Time     `db:"deleted_at"`
+	ID             uuid.UUID  `db:"id"`
+	OrganizationID uuid.UUID  `db:"organization_id"`
+	Year           int        `db:"year"`
+	Semester       int        `db:"semester"` // 1 or 2
+	Status         string     `db:"status"`   // draft, ongoing, ready_to_sign, completed
+	CreatedAt      time.Time  `db:"created_at"`
+	UpdatedAt      time.Time  `db:"updated_at"`
+	DeletedAt      *time.Time `db:"deleted_at"`
 
 	// Relations
-	Organization *Organization        `db:"-"`
-	Notes        []*WorkPaperNote     `db:"-"`
+	Organization *Organization         `db:"-"`
+	Notes        []*WorkPaperNote      `db:"-"`
 	Signatures   []*WorkPaperSignature `db:"-"`
 }
 
 // WorkPaperStatus constants
 const (
-	WorkPaperStatusDraft        = "draft"
+	WorkPaperStatusDraft       = "draft"
 	WorkPaperStatusOngoing     = "ongoing"
 	WorkPaperStatusReadyToSign = "ready_to_sign"
 	WorkPaperStatusCompleted   = "completed"
@@ -71,7 +71,7 @@ func (wp *WorkPaper) UpdateStatus(newStatus string) error {
 // isValidStatusTransition validates if status transition is allowed
 func isValidStatusTransition(currentStatus, newStatus string) bool {
 	validTransitions := map[string][]string{
-		WorkPaperStatusDraft:        {WorkPaperStatusDraft, WorkPaperStatusOngoing},
+		WorkPaperStatusDraft:       {WorkPaperStatusDraft, WorkPaperStatusOngoing},
 		WorkPaperStatusOngoing:     {WorkPaperStatusOngoing, WorkPaperStatusReadyToSign, WorkPaperStatusDraft},
 		WorkPaperStatusReadyToSign: {WorkPaperStatusReadyToSign, WorkPaperStatusCompleted, WorkPaperStatusOngoing},
 		WorkPaperStatusCompleted:   {WorkPaperStatusCompleted, WorkPaperStatusReadyToSign}, // Allow reopening if needed

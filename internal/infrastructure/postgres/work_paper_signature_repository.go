@@ -8,9 +8,10 @@ import (
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
+	"sandbox/pkg/pagination"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type workPaperSignatureRepository struct {
@@ -119,6 +120,24 @@ func (r *workPaperSignatureRepository) GetByUserID(ctx context.Context, userID s
 	return signatures, nil
 }
 
+// GetPendingByUserID gets all pending signatures by user ID
+func (r *workPaperSignatureRepository) GetPendingByUserID(ctx context.Context, userID string) ([]*entity.WorkPaperSignature, error) {
+	query := `
+		SELECT id, work_paper_id, user_id, user_name, user_email, user_role,
+			   signature_data, signed_at, signature_type, status, notes, created_at, updated_at, deleted_at
+		FROM work_paper_signatures
+		WHERE user_id = $1 AND status = $2 AND deleted_at IS NULL
+		ORDER BY created_at ASC`
+
+	var signatures []*entity.WorkPaperSignature
+	err := r.db.SelectContext(ctx, &signatures, query, userID, entity.SignatureStatusPending)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending signatures by user ID: %w", err)
+	}
+
+	return signatures, nil
+}
+
 // GetPendingSignatures gets all pending signatures for a work paper
 func (r *workPaperSignatureRepository) GetPendingSignatures(ctx context.Context, workPaperID uuid.UUID) ([]*entity.WorkPaperSignature, error) {
 	return r.GetSignaturesByStatus(ctx, workPaperID, entity.SignatureStatusPending)
@@ -127,6 +146,84 @@ func (r *workPaperSignatureRepository) GetPendingSignatures(ctx context.Context,
 // GetSignedSignatures gets all signed signatures for a work paper
 func (r *workPaperSignatureRepository) GetSignedSignatures(ctx context.Context, workPaperID uuid.UUID) ([]*entity.WorkPaperSignature, error) {
 	return r.GetSignaturesByStatus(ctx, workPaperID, entity.SignatureStatusSigned)
+}
+
+// List gets work paper signatures with filtering and pagination
+func (r *workPaperSignatureRepository) List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperSignature, int64, error) {
+	// Build count query
+	countBuilder := pagination.NewQueryBuilder("SELECT COUNT(*) FROM work_paper_signatures")
+	for _, filter := range params.Filters {
+		if err := countBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Always include deleted_at filter
+	countBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	countQuery, countArgs := countBuilder.Build()
+
+	var totalCount int64
+	err := r.db.GetContext(ctx, &totalCount, countQuery, countArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Build main query
+	queryBuilder := pagination.NewQueryBuilder(`
+		SELECT id, work_paper_id, user_id, user_name, user_email, user_role,
+			   signature_data, signed_at, signature_type, status, notes, created_at, updated_at, deleted_at
+		FROM work_paper_signatures`)
+
+	for _, filter := range params.Filters {
+		if err := queryBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Always include deleted_at filter
+	queryBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, sort := range params.Sorts {
+		if err := queryBuilder.AddSort(sort); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	query, args := queryBuilder.Build()
+
+	// Add pagination
+	offset := (params.Pagination.Page - 1) * params.Pagination.Limit
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", params.Pagination.Limit, offset)
+
+	var signatures []*entity.WorkPaperSignature
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var signature entity.WorkPaperSignature
+		if err := rows.StructScan(&signature); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan work paper signature: %w", err)
+		}
+		signatures = append(signatures, &signature)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return signatures, totalCount, nil
 }
 
 // Update updates a work paper signature

@@ -399,5 +399,3 @@ func (r *vaccinesRepository) ListActiveCountries(ctx context.Context) ([]*entity
 
 	return countries, nil
 }
-
-

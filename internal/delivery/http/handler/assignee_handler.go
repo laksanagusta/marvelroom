@@ -9,11 +9,11 @@ import (
 )
 
 type AssigneeHandler struct {
-	addAssigneeUseCase     *business_trip.AddAssigneeUseCase
-	getAssigneeUseCase     *business_trip.GetAssigneeUseCase
-	updateAssigneeUseCase  *business_trip.UpdateAssigneeUseCase
-	deleteAssigneeUseCase  *business_trip.DeleteAssigneeUseCase
-	listAssigneesUseCase   *business_trip.ListAssigneesUseCase
+	addAssigneeUseCase    *business_trip.AddAssigneeUseCase
+	getAssigneeUseCase    *business_trip.GetAssigneeUseCase
+	updateAssigneeUseCase *business_trip.UpdateAssigneeUseCase
+	deleteAssigneeUseCase *business_trip.DeleteAssigneeUseCase
+	listAssigneesUseCase  *business_trip.ListAssigneesUseCase
 }
 
 func NewAssigneeHandler(

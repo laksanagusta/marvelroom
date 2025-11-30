@@ -9,22 +9,24 @@ import (
 
 type ListTransactionsUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewListTransactionsUseCase(businessTripRepo repository.BusinessTripRepository) *ListTransactionsUseCase {
+func NewListTransactionsUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *ListTransactionsUseCase {
 	return &ListTransactionsUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
 type ListTransactionsResponse struct {
-	AssigneeID   string                 `json:"assigneeId"`
-	Transactions []TransactionResponse  `json:"transactions"`
+	AssigneeID   string                `json:"assigneeId"`
+	Transactions []TransactionResponse `json:"transactions"`
 }
 
 func (uc *ListTransactionsUseCase) Execute(ctx context.Context, assigneeID string) (*ListTransactionsResponse, error) {
 	// Verify assignee exists
-	_, err := uc.businessTripRepo.GetAssigneeByID(ctx, assigneeID)
+	_, err := uc.assigneeRepo.GetAssigneeByID(ctx, assigneeID)
 	if err != nil {
 		return nil, fmt.Errorf("assignee not found")
 	}

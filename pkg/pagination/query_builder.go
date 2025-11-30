@@ -155,6 +155,7 @@ func (qb *QueryBuilder) sanitizeField(field string) string {
 
 func (qb *QueryBuilder) isValidField(field string) bool {
 	validFields := map[string]bool{
+		"user_id":          true,
 		"id":               true,
 		"start_date":       true,
 		"end_date":         true,
@@ -186,24 +187,24 @@ func (qb *QueryBuilder) isValidField(field string) bool {
 		"country_name_id": true,
 
 		// Work paper item fields
-		"number":         true,
-		"statement":      true,
-		"explanation":    true,
-		"filling_guide":  true,
-		"parent_id":      true,
-		"level":          true,
-		"sort_order":     true,
-		"is_active":      true,
-		"work_paper_id":  true,
-		"master_item_id": true,
-		"gdrive_link":    true,
-		"is_valid":       true,
-		"notes":          true,
+		"number":            true,
+		"statement":         true,
+		"explanation":       true,
+		"filling_guide":     true,
+		"parent_id":         true,
+		"level":             true,
+		"sort_order":        true,
+		"is_active":         true,
+		"work_paper_id":     true,
+		"master_item_id":    true,
+		"gdrive_link":       true,
+		"is_valid":          true,
+		"notes":             true,
 		"last_llm_response": true,
-		"organization_id": true,
-		"year":           true,
-		"semester":       true,
-		"status":         true,
+		"organization_id":   true,
+		"year":              true,
+		"semester":          true,
+		"status":            true,
 	}
 	return validFields[field]
 }

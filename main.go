@@ -32,7 +32,7 @@ func main() {
 	app.Use(middleware.ConfigureCORS(cfg.CORS.AllowOrigins))
 
 	// Setup routes with all handlers
-	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler, container.WorkPaperItemHandler, container.WorkPaperHandler, container.VaccineHandler, container.WorkPaperSignatureHandler, container.CryptoHandler)
+	httpRouter.SetupRoutes(app, container.TransactionHandler, container.MeetingHandler, container.BusinessTripHandler, container.AssigneeHandler, container.BusinessTripTransactionHandler, container.WorkPaperItemHandler, container.WorkPaperHandler, container.VaccineHandler, container.WorkPaperSignatureHandler, container.BusinessTripDashboardHandler)
 
 	// Start server
 	fmt.Printf("🚀 Server running on port %s\n", cfg.Server.Port)
@@ -56,4 +56,3 @@ func customErrorHandler(c *fiber.Ctx, err error) error {
 		"code":  code,
 	})
 }
-

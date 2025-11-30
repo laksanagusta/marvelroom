@@ -3,8 +3,8 @@ package handler
 import (
 	"log"
 
-	transactionUC "sandbox/internal/usecase/transaction"
 	"sandbox/internal/infrastructure/file"
+	transactionUC "sandbox/internal/usecase/transaction"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -2,6 +2,7 @@ package excel
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -424,6 +425,9 @@ func (g *Generator) generateTableData(f *excelize.File, sheetName string, req Re
 	constUangHarianJmlHari := int32(2)
 	constUangHarianPerhari := int32(688000)
 	constUangHarianJumlah := constUangHarianJmlHari * constUangHarianPerhari
+
+	jsn, _ := json.Marshal(req)
+	fmt.Println(string(jsn))
 
 	for _, assignee := range req.Assignees {
 		// Use employee_number (NIP) as the primary identifier, fallback to employee_id

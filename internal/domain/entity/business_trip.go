@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type BusinessTripType string
@@ -120,6 +122,7 @@ func NewBusinessTrip(startDate, endDate, spdDate, departureDate, returnDate time
 	}
 
 	return &BusinessTrip{
+		ID:                 uuid.NewString(),
 		BusinessTripNumber: sql.NullString{},
 		StartDate:          startDate,
 		EndDate:            endDate,

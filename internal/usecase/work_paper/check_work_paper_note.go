@@ -51,8 +51,8 @@ func (uc *CheckWorkPaperNoteUseCase) Execute(ctx context.Context, req CheckReque
 // Backward compatibility aliases (deprecated)
 type (
 	CheckDocumentUseCase = CheckWorkPaperNoteUseCase
-	CheckRequestLegacy = CheckRequest
-	CheckResponseLegacy = CheckResponse
+	CheckRequestLegacy   = CheckRequest
+	CheckResponseLegacy  = CheckResponse
 )
 
 // NewCheckDocumentUseCase creates a new use case instance (deprecated)

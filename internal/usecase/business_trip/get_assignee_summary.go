@@ -9,17 +9,19 @@ import (
 
 type GetAssigneeSummaryUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewGetAssigneeSummaryUseCase(businessTripRepo repository.BusinessTripRepository) *GetAssigneeSummaryUseCase {
+func NewGetAssigneeSummaryUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *GetAssigneeSummaryUseCase {
 	return &GetAssigneeSummaryUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
 func (uc *GetAssigneeSummaryUseCase) Execute(ctx context.Context, assigneeID string) (*AssigneeSummary, error) {
 	// Get assignee with their transactions
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, assigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, assigneeID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +47,6 @@ func (uc *GetAssigneeSummaryUseCase) Execute(ctx context.Context, assigneeID str
 		AssigneeName:      assignee.GetName(),
 		TotalCost:         assignee.GetTotalCost(),
 		TotalTransactions: len(transactions),
-		CostByType:       costByType,
+		CostByType:        costByType,
 	}, nil
 }

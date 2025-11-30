@@ -19,10 +19,10 @@ type Client struct {
 }
 
 type EmailRequest struct {
-	To       []string `json:"to"`
-	Subject  string   `json:"subject"`
-	Body     string   `json:"body"`
-	HTML     bool     `json:"html"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Body    string   `json:"body"`
+	HTML    bool     `json:"html"`
 }
 
 type EmailResponse struct {
@@ -100,5 +100,3 @@ func (c *Client) SendNotification(ctx context.Context, opts entity.NotificationO
 
 	return nil
 }
-
-

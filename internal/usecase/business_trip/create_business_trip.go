@@ -12,13 +12,17 @@ import (
 
 type CreateBusinessTripUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
+	transactionRepo  repository.BusinessTripTransactionRepository
 	userService      *service.UserService
 	db               database.DB
 }
 
-func NewCreateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService, db database.DB) *CreateBusinessTripUseCase {
+func NewCreateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository, transactionRepo repository.BusinessTripTransactionRepository, userService *service.UserService, db database.DB) *CreateBusinessTripUseCase {
 	return &CreateBusinessTripUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
+		transactionRepo:  transactionRepo,
 		userService:      userService,
 		db:               db,
 	}
@@ -47,12 +51,20 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 	var completeBusinessTrip *entity.BusinessTrip
 
 	err = uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
-		// Create transaction-aware repository
-		repoWithTx := uc.businessTripRepo.(interface {
+		// Create transaction-aware repositories
+		businessTripRepoWithTx := uc.businessTripRepo.(interface {
 			WithTransaction(database.DBTx) repository.BusinessTripRepository
 		}).WithTransaction(tx)
 
-		businessTrip, err := repoWithTx.Create(ctx, bt)
+		assigneeRepoWithTx := uc.assigneeRepo.(interface {
+			WithTransaction(database.DBTx) repository.AssigneeRepository
+		}).WithTransaction(tx)
+
+		transactionRepoWithTx := uc.transactionRepo.(interface {
+			WithTransaction(database.DBTx) repository.BusinessTripTransactionRepository
+		}).WithTransaction(tx)
+
+		businessTrip, err := businessTripRepoWithTx.Create(ctx, bt)
 		if err != nil {
 			return err
 		}
@@ -75,14 +87,14 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 				assignee.EmployeeNumber = userData.EmployeeNumber // NIP from API
 			}
 
-			createdAssignee, err := repoWithTx.CreateAssignee(ctx, assignee)
+			createdAssignee, err := assigneeRepoWithTx.Create(ctx, assignee)
 			if err != nil {
 				return err
 			}
 
 			for _, transaction := range createdAssignee.Transactions {
 				transaction.AssigneeID = createdAssignee.ID
-				_, err := repoWithTx.CreateTransaction(ctx, transaction)
+				_, err := transactionRepoWithTx.CreateTransaction(ctx, transaction)
 				if err != nil {
 					return err
 				}
@@ -91,13 +103,12 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
-	// Query the complete business trip using the main repository (not within transaction)
-	// This avoids connection state issues within the transaction
+	// Query complete business trip using main repository (not within transaction)
+	// This avoids connection state issues within transaction
 	completeBusinessTrip, err = uc.businessTripRepo.GetByID(ctx, bt.ID)
 	if err != nil {
 		return nil, err

@@ -107,9 +107,9 @@ func (uc *ListWorkPaperItemsUseCase) Execute(ctx context.Context, params *pagina
 // Backward compatibility aliases (deprecated)
 type (
 	ListMasterLakipItemsUseCase = ListWorkPaperItemsUseCase
-	ListRequestLegacy          = ListRequest
-	ListResponseLegacy         = ListResponse
-	ItemResponseLegacy         = ItemResponse
+	ListRequestLegacy           = ListRequest
+	ListResponseLegacy          = ListResponse
+	ItemResponseLegacy          = ItemResponse
 )
 
 // NewListMasterLakipItemsUseCase creates a new use case instance (deprecated)

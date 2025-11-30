@@ -6,18 +6,20 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 
+	"sandbox/internal/domain/service"
 	"sandbox/internal/usecase/work_paper"
 )
 
 // WorkPaperHandler handles HTTP requests for work paper
 type WorkPaperHandler struct {
-	createUseCase          *work_paper.CreateWorkPaperUseCase
-	checkDocumentUseCase   *work_paper.CheckWorkPaperNoteUseCase
-	listUseCase            *work_paper.ListWorkPapersUseCase
-	getDetailsUseCase      *work_paper.GetWorkPaperDetailsUseCase
+	createUseCase           *work_paper.CreateWorkPaperUseCase
+	checkDocumentUseCase    *work_paper.CheckWorkPaperNoteUseCase
+	listUseCase             *work_paper.ListWorkPapersUseCase
+	getDetailsUseCase       *work_paper.GetWorkPaperDetailsUseCase
 	updateStatusUseCase     *work_paper.UpdateWorkPaperStatusUseCase
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase
-	validator              *validator.Validate
+	manageSignersUseCase    *work_paper.ManageSignersUseCase
+	validator               *validator.Validate
 }
 
 // NewWorkPaperHandler creates a new handler instance
@@ -28,15 +30,17 @@ func NewWorkPaperHandler(
 	getDetailsUseCase *work_paper.GetWorkPaperDetailsUseCase,
 	updateStatusUseCase *work_paper.UpdateWorkPaperStatusUseCase,
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase,
+	manageSignersUseCase *work_paper.ManageSignersUseCase,
 ) *WorkPaperHandler {
 	return &WorkPaperHandler{
-		createUseCase:          createUseCase,
-		checkDocumentUseCase:   checkDocumentUseCase,
-		listUseCase:            listUseCase,
-		getDetailsUseCase:      getDetailsUseCase,
+		createUseCase:           createUseCase,
+		checkDocumentUseCase:    checkDocumentUseCase,
+		listUseCase:             listUseCase,
+		getDetailsUseCase:       getDetailsUseCase,
 		updateStatusUseCase:     updateStatusUseCase,
 		updateWorkPaperNoteCase: updateWorkPaperNoteCase,
-		validator:              validator.New(),
+		manageSignersUseCase:    manageSignersUseCase,
+		validator:               validator.New(),
 	}
 }
 
@@ -441,10 +445,127 @@ func (h *WorkPaperHandler) CheckDocument(c *fiber.Ctx) error {
 	})
 }
 
+// ManageSigners manages signers for a work paper
+// @Summary Manage Signers
+// @Description Adds, removes, or replaces signers for a work paper
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper ID"
+// @Param request body service.ManageSignersRequest true "Manage Signers Request"
+// @Success 200 {object} StandardResponse{data=service.ManageSignersResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-papers/{id}/signers [put]
+func (h *WorkPaperHandler) ManageSigners(c *fiber.Ctx) error {
+	// Get work paper ID from URL parameter
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Work Paper ID is required",
+		})
+	}
+
+	// Parse request body
+	var req service.ManageSignersRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	// Set ID from URL parameter
+	req.WorkPaperID = id
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	// Execute use case
+	ctx := context.Background()
+	response, err := h.manageSignersUseCase.Execute(ctx, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to manage signers",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// AssignSignersBulk assigns multiple signers to a work paper (separate endpoint)
+// @Summary Assign Signers Bulk
+// @Description Assigns multiple signers to a work paper
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper ID"
+// @Param request body service.ManageSignersRequest true "Assign Signers Request"
+// @Success 200 {object} StandardResponse{data=service.ManageSignersResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-papers/{id}/assign-signers [post]
+func (h *WorkPaperHandler) AssignSignersBulk(c *fiber.Ctx) error {
+	// Get work paper ID from URL parameter
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Work Paper ID is required",
+		})
+	}
+
+	// Parse request body
+	var req service.ManageSignersRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	// Set ID and action
+	req.WorkPaperID = id
+	req.Action = "add"
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	// Execute use case
+	ctx := context.Background()
+	response, err := h.manageSignersUseCase.Execute(ctx, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to assign signers",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
 // Backward compatibility factory function (deprecated)
 func NewPaperWorkHandler(
 	createUseCase *work_paper.CreateWorkPaperUseCase,
 	checkDocumentUseCase *work_paper.CheckWorkPaperNoteUseCase,
 ) *WorkPaperHandler {
-	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil)
+	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil, nil)
 }

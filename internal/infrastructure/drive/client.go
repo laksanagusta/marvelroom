@@ -17,19 +17,19 @@ type Client struct {
 }
 
 type CreateFolderRequest struct {
-	Name     string            `json:"name"`
-	Parents  []string          `json:"parents,omitempty"`
-	MimeType string            `json:"mimeType"`
+	Name       string            `json:"name"`
+	Parents    []string          `json:"parents,omitempty"`
+	MimeType   string            `json:"mimeType"`
 	Properties map[string]string `json:"properties,omitempty"`
 }
 
 type FileResponse struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	MimeType    string            `json:"mimeType"`
-	Parents     []string          `json:"parents"`
-	CreatedTime string            `json:"createdTime"`
-	WebViewLink string            `json:"webViewLink"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	MimeType    string   `json:"mimeType"`
+	Parents     []string `json:"parents"`
+	CreatedTime string   `json:"createdTime"`
+	WebViewLink string   `json:"webViewLink"`
 }
 
 func NewClient(apiKey string) *Client {
@@ -126,4 +126,3 @@ func (c *Client) DuplicateFile(ctx context.Context, templateID, targetFolderID, 
 
 	return fileResp.WebViewLink, nil
 }
-

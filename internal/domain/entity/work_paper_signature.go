@@ -20,7 +20,7 @@ type WorkPaperSignature struct {
 	SignedAt      *time.Time     `db:"signed_at"`      // Nullable
 	SignatureType string         `db:"signature_type"`
 	Status        string         `db:"status"`
-	Notes         *string        `db:"notes"`           // Nullable
+	Notes         *string        `db:"notes"` // Nullable
 	CreatedAt     time.Time      `db:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at"`
 	DeletedAt     *time.Time     `db:"deleted_at"`
@@ -29,14 +29,15 @@ type WorkPaperSignature struct {
 	WorkPaper *WorkPaper `db:"-"`
 }
 
-// SignatureData represents the signature information
+// SignatureData represents signature information
 type SignatureData struct {
-	SignatureImage string    `json:"signature_image,omitempty"` // Base64 encoded image
-	IPAddress      string    `json:"ip_address,omitempty"`
-	UserAgent      string    `json:"user_agent,omitempty"`
-	DeviceID       string    `json:"device_id,omitempty"`
-	Timestamp      time.Time `json:"timestamp"`
-	Location       *Location `json:"location,omitempty"`
+	SignatureImage   string            `json:"signature_image,omitempty"` // Base64 encoded image
+	IPAddress        string            `json:"ip_address,omitempty"`
+	UserAgent        string            `json:"user_agent,omitempty"`
+	DeviceID         string            `json:"device_id,omitempty"`
+	Timestamp        time.Time         `json:"timestamp"`
+	Location         *Location         `json:"location,omitempty"`
+	DigitalSignature *DigitalSignature `json:"digital_signature,omitempty"` // Certificate-based signature
 }
 
 // Location represents geographic location
@@ -57,8 +58,8 @@ const (
 
 // SignatureStatus constants
 const (
-	SignatureStatusPending = "pending"
-	SignatureStatusSigned  = "signed"
+	SignatureStatusPending  = "pending"
+	SignatureStatusSigned   = "signed"
 	SignatureStatusRejected = "rejected"
 )
 
@@ -101,19 +102,20 @@ func NewWorkPaperSignature(workPaperID uuid.UUID, userID, userName, signatureTyp
 	}
 
 	now := time.Now()
+
 	return &WorkPaperSignature{
-		ID:           uuid.New(),
-		WorkPaperID:  workPaperID,
-		UserID:       userID,
-		UserName:     userName,
+		ID:            uuid.New(),
+		WorkPaperID:   workPaperID,
+		UserID:        userID,
+		UserName:      userName,
 		SignatureType: signatureType,
-		Status:       SignatureStatusPending,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Status:        SignatureStatusPending,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}, nil
 }
 
-// SetUserDetails sets user details for the signature
+// SetUserDetails sets user details for signature
 func (wps *WorkPaperSignature) SetUserDetails(email, role string) {
 	if email == "" {
 		wps.UserEmail = nil
@@ -135,7 +137,7 @@ func (wps *WorkPaperSignature) AddSignatureData(data SignatureData) {
 	wps.UpdatedAt = time.Now()
 }
 
-// Sign signs the work paper
+// Sign signs work paper
 func (wps *WorkPaperSignature) Sign(notes string) error {
 	if wps.Status == SignatureStatusSigned {
 		return ErrAlreadySigned
@@ -159,7 +161,7 @@ func (wps *WorkPaperSignature) Sign(notes string) error {
 	return nil
 }
 
-// Reject rejects the work paper signature
+// Reject rejects work paper signature
 func (wps *WorkPaperSignature) Reject(notes string) error {
 	if wps.Status == SignatureStatusSigned {
 		return ErrAlreadySigned
@@ -176,7 +178,7 @@ func (wps *WorkPaperSignature) Reject(notes string) error {
 	return nil
 }
 
-// Reset resets the signature to pending status
+// Reset resets signature to pending status
 func (wps *WorkPaperSignature) Reset() error {
 	wps.Status = SignatureStatusPending
 	wps.SignedAt = nil
@@ -187,7 +189,7 @@ func (wps *WorkPaperSignature) Reset() error {
 
 // Helper methods to safely access nullable fields
 
-// GetUserEmail safely returns the user email
+// GetUserEmail safely returns user email
 func (wps *WorkPaperSignature) GetUserEmail() string {
 	if wps.UserEmail == nil {
 		return ""
@@ -195,7 +197,7 @@ func (wps *WorkPaperSignature) GetUserEmail() string {
 	return *wps.UserEmail
 }
 
-// GetUserRole safely returns the user role
+// GetUserRole safely returns user role
 func (wps *WorkPaperSignature) GetUserRole() string {
 	if wps.UserRole == nil {
 		return ""
@@ -203,7 +205,7 @@ func (wps *WorkPaperSignature) GetUserRole() string {
 	return *wps.UserRole
 }
 
-// GetSignatureData safely returns the signature data
+// GetSignatureData safely returns signature data
 func (wps *WorkPaperSignature) GetSignatureData() SignatureData {
 	if wps.SignatureData == nil {
 		return SignatureData{}
@@ -211,7 +213,7 @@ func (wps *WorkPaperSignature) GetSignatureData() SignatureData {
 	return *wps.SignatureData
 }
 
-// GetNotes safely returns the notes
+// GetNotes safely returns notes
 func (wps *WorkPaperSignature) GetNotes() string {
 	if wps.Notes == nil {
 		return ""
@@ -219,7 +221,7 @@ func (wps *WorkPaperSignature) GetNotes() string {
 	return *wps.Notes
 }
 
-// GetSignedAt safely returns the signed timestamp
+// GetSignedAt safely returns signed timestamp
 func (wps *WorkPaperSignature) GetSignedAt() time.Time {
 	if wps.SignedAt == nil {
 		return time.Time{}
@@ -227,19 +229,68 @@ func (wps *WorkPaperSignature) GetSignedAt() time.Time {
 	return *wps.SignedAt
 }
 
-// IsSigned returns true if the signature is signed
+// IsSigned returns true if signature is signed
 func (wps *WorkPaperSignature) IsSigned() bool {
 	return wps.Status == SignatureStatusSigned
 }
 
-// IsPending returns true if the signature is pending
+// IsPending returns true if signature is pending
 func (wps *WorkPaperSignature) IsPending() bool {
 	return wps.Status == SignatureStatusPending
 }
 
-// IsRejected returns true if the signature is rejected
+// IsRejected returns true if signature is rejected
 func (wps *WorkPaperSignature) IsRejected() bool {
 	return wps.Status == SignatureStatusRejected
+}
+
+// AddDigitalSignature adds digital signature data to the signature
+func (wps *WorkPaperSignature) AddDigitalSignature(digitalSig *DigitalSignature) error {
+	if digitalSig == nil {
+		return ErrDigitalSignatureRequired
+	}
+
+	if wps.SignatureData == nil {
+		wps.SignatureData = &SignatureData{}
+	}
+
+	wps.SignatureData.DigitalSignature = digitalSig
+	wps.UpdatedAt = time.Now()
+	return nil
+}
+
+// GetDigitalSignature safely returns digital signature
+func (wps *WorkPaperSignature) GetDigitalSignature() *DigitalSignature {
+	if wps.SignatureData == nil || wps.SignatureData.DigitalSignature == nil {
+		return nil
+	}
+	return wps.SignatureData.DigitalSignature
+}
+
+// HasValidDigitalSignature returns true if signature has a valid digital signature
+func (wps *WorkPaperSignature) HasValidDigitalSignature() bool {
+	digitalSig := wps.GetDigitalSignature()
+	return digitalSig != nil && digitalSig.IsValid()
+}
+
+// SignWithDigitalSignature signs the work paper using digital signature
+func (wps *WorkPaperSignature) SignWithDigitalSignature(digitalSig *DigitalSignature, notes string) error {
+	if digitalSig == nil {
+		return ErrDigitalSignatureRequired
+	}
+
+	if !digitalSig.IsValid() {
+		return ErrInvalidDigitalSignature
+	}
+
+	// Add digital signature data
+	err := wps.AddDigitalSignature(digitalSig)
+	if err != nil {
+		return err
+	}
+
+	// Sign the work paper
+	return wps.Sign(notes)
 }
 
 // isValidSignatureType validates if signature type is valid

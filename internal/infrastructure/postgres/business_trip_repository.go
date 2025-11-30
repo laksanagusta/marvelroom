@@ -50,20 +50,20 @@ const (
 
 	insertAssignee = `
 		INSERT INTO assignees (
-			id, business_trip_id, name, spd_number, employee_id, employee_name, employee_number, position, rank, created_at, updated_at
+			id, business_trip_id, name, spd_number, employee_id, position, rank, employee_name, employee_number, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id
 	`
 
 	updateAssignee = `
 		UPDATE assignees
-		SET name = $2, spd_number = $3, employee_id = $4, employee_name = $5, employee_number = $6, position = $7, rank = $8, updated_at = $9
+		SET name = $2, spd_number = $3, employee_id = $4, position = $5, rank = $6, employee_name = $7, employee_number = $8, updated_at = $9
 		WHERE id = $1
 	`
 
 	findAssigneeByID = `
 		SELECT
-			a.id, a.business_trip_id, a.name, a.spd_number, a.employee_id, a.employee_name, a.employee_number, a.position, a.rank,
+			a.id, a.business_trip_id, a.name, a.spd_number, a.employee_id, a.position, a.rank, a.employee_name, a.employee_number,
 			a.created_at, a.updated_at
 		FROM assignees a
 		WHERE a.id = $1 AND a.deleted_at IS NULL
@@ -71,7 +71,7 @@ const (
 
 	findAssigneesByBusinessTripID = `
 		SELECT
-			a.id, a.business_trip_id, a.name, a.spd_number, a.employee_id, a.employee_name, a.employee_number, a.position, a.rank,
+			a.id, a.business_trip_id, a.name, a.spd_number, a.employee_id, a.position, a.rank, a.employee_name, a.employee_number,
 			a.created_at, a.updated_at
 		FROM assignees a
 		WHERE a.business_trip_id = $1 AND a.deleted_at IS NULL
@@ -134,22 +134,22 @@ func NewBusinessTripRepository(db database.Queryer) repository.BusinessTripRepos
 	if dbInterface, ok := db.(database.DB); ok {
 		sqlDB := dbInterface.UnderlyingDB()
 		return &businessTripRepository{
-			db:                 db,
-			numberGenerator:    business_trip_number.NewGenerator(sqlDB),
+			db:              db,
+			numberGenerator: business_trip_number.NewGenerator(sqlDB),
 		}
 	}
 
 	// Fallback: create repository without number generator
 	// This can happen in tests or when using transactions
 	return &businessTripRepository{
-		db:                 db,
-		numberGenerator:    nil,
+		db:              db,
+		numberGenerator: nil,
 	}
 }
 
 type businessTripRepository struct {
-	db                 database.Queryer
-	numberGenerator    *business_trip_number.Generator
+	db              database.Queryer
+	numberGenerator *business_trip_number.Generator
 }
 
 // WithTransaction returns a new repository instance with the given transaction
@@ -368,7 +368,6 @@ func (r *businessTripRepository) List(ctx context.Context, params *pagination.Qu
 	return businessTrips, totalCount, nil
 }
 
-
 // CreateAssignee creates a new assignee
 func (r *businessTripRepository) CreateAssignee(ctx context.Context, assignee *entity.Assignee) (*entity.Assignee, error) {
 	if assignee.ID == "" {
@@ -384,10 +383,10 @@ func (r *businessTripRepository) CreateAssignee(ctx context.Context, assignee *e
 		assignee.Name,
 		assignee.SPDNumber,
 		assignee.EmployeeID,
-		assignee.EmployeeName,
-		assignee.EmployeeNumber,
 		assignee.Position,
 		assignee.Rank,
+		assignee.EmployeeName,
+		assignee.EmployeeNumber,
 		now,
 		now,
 	)
@@ -437,10 +436,10 @@ func (r *businessTripRepository) UpdateAssignee(ctx context.Context, assignee *e
 		assignee.Name,
 		assignee.SPDNumber,
 		assignee.EmployeeID,
-		assignee.EmployeeName,
-		assignee.EmployeeNumber,
 		assignee.Position,
 		assignee.Rank,
+		assignee.EmployeeName,
+		assignee.EmployeeNumber,
 		now,
 	)
 	if err != nil {
@@ -706,4 +705,66 @@ func (r *businessTripRepository) DeleteTransactionsByAssigneeIDs(ctx context.Con
 		return fmt.Errorf("failed to delete transactions by assignee IDs: %w", err)
 	}
 	return nil
+}
+
+// GetDestinationStats gets destination statistics for the dashboard
+func (r *businessTripRepository) GetDestinationStats(ctx context.Context, startDate, endDate *time.Time, destination string) ([]*repository.DestinationData, error) {
+	// For now, return empty slice as a placeholder implementation
+	// TODO: Implement actual destination statistics query
+	return []*repository.DestinationData{}, nil
+}
+
+// GetMonthlyStats gets monthly statistics for the dashboard
+func (r *businessTripRepository) GetMonthlyStats(ctx context.Context, startDate, endDate time.Time, destination string) ([]*repository.MonthlyData, error) {
+	// For now, return empty slice as a placeholder implementation
+	// TODO: Implement actual monthly statistics query
+	return []*repository.MonthlyData{}, nil
+}
+
+// GetRecentWithSummary gets recent business trips with summary data
+func (r *businessTripRepository) GetRecentWithSummary(ctx context.Context, limit int) ([]*repository.RecentBusinessTripData, error) {
+	// For now, return empty slice as a placeholder implementation
+	// TODO: Implement actual recent business trips with summary query
+	return []*repository.RecentBusinessTripData{}, nil
+}
+
+// GetStatusCounts gets status counts for the dashboard
+func (r *businessTripRepository) GetStatusCounts(ctx context.Context, startDate, endDate *time.Time, destination string) (*repository.StatusCounts, error) {
+	// For now, return empty counts as a placeholder implementation
+	// TODO: Implement actual status counts query
+	return &repository.StatusCounts{
+		Total:     0,
+		Draft:     0,
+		Ongoing:   0,
+		Completed: 0,
+		Canceled:  0,
+	}, nil
+}
+
+// GetTotalCost gets total cost for the dashboard
+func (r *businessTripRepository) GetTotalCost(ctx context.Context, startDate, endDate *time.Time, destination string) (float64, error) {
+	// For now, return 0 as a placeholder implementation
+	// TODO: Implement actual total cost query
+	return 0.0, nil
+}
+
+// GetTotalCount gets total count for the dashboard
+func (r *businessTripRepository) GetTotalCount(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
+	// For now, return 0 as a placeholder implementation
+	// TODO: Implement actual total count query
+	return 0, nil
+}
+
+// GetTypeStats gets transaction type statistics for the dashboard
+func (r *businessTripRepository) GetTypeStats(ctx context.Context, startDate, endDate *time.Time) ([]*repository.TransactionTypeData, error) {
+	// For now, return empty slice as a placeholder implementation
+	// TODO: Implement actual type statistics query
+	return []*repository.TransactionTypeData{}, nil
+}
+
+// GetUpcomingCount gets upcoming business trips count for the dashboard
+func (r *businessTripRepository) GetUpcomingCount(ctx context.Context) (int64, error) {
+	// For now, return 0 as a placeholder implementation
+	// TODO: Implement actual upcoming count query
+	return 0, nil
 }

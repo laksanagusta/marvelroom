@@ -10,16 +10,18 @@ import (
 
 type AddTransactionUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewAddTransactionUseCase(businessTripRepo repository.BusinessTripRepository) *AddTransactionUseCase {
+func NewAddTransactionUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *AddTransactionUseCase {
 	return &AddTransactionUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
 func (uc *AddTransactionUseCase) Execute(ctx context.Context, assigneeID string, req TransactionRequest) (*TransactionResponse, error) {
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, assigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, assigneeID)
 	if err != nil {
 		return nil, err
 	}

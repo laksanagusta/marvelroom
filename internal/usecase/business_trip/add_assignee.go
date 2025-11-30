@@ -12,16 +12,20 @@ import (
 )
 
 type AddAssigneeUseCase struct {
-	businessTripRepo repository.BusinessTripRepository
-	userService     *service.UserService
-	db               database.DB
+	businessTripRepo        repository.BusinessTripRepository
+	assigneeRepo            repository.AssigneeRepository
+	transactionRepo         repository.BusinessTripTransactionRepository
+	userService             *service.UserService
+	db                      database.DB
 }
 
-func NewAddAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService, db database.DB) *AddAssigneeUseCase {
+func NewAddAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository, transactionRepo repository.BusinessTripTransactionRepository, userService *service.UserService, db database.DB) *AddAssigneeUseCase {
 	return &AddAssigneeUseCase{
-		businessTripRepo: businessTripRepo,
-		userService:     userService,
-		db:               db,
+		businessTripRepo:        businessTripRepo,
+		assigneeRepo:            assigneeRepo,
+		transactionRepo:         transactionRepo,
+		userService:             userService,
+		db:                      db,
 	}
 }
 
@@ -79,13 +83,8 @@ func (uc *AddAssigneeUseCase) Execute(ctx context.Context, businessTripID string
 	var createdAssignee *entity.Assignee
 
 	err = uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
-		// Create transaction-aware repository
-		repoWithTx := uc.businessTripRepo.(interface {
-			WithTransaction(database.DBTx) repository.BusinessTripRepository
-		}).WithTransaction(tx)
-
 		var err error
-		createdAssignee, err = repoWithTx.CreateAssignee(ctx, assignee)
+		createdAssignee, err = uc.assigneeRepo.Create(ctx, assignee)
 		if err != nil {
 			return err
 		}
@@ -93,7 +92,7 @@ func (uc *AddAssigneeUseCase) Execute(ctx context.Context, businessTripID string
 		// Create transactions for the assignee
 		for _, transaction := range assignee.Transactions {
 			transaction.AssigneeID = createdAssignee.ID
-			_, err = repoWithTx.CreateTransaction(ctx, transaction)
+			_, err = uc.transactionRepo.CreateTransaction(ctx, transaction)
 			if err != nil {
 				return err
 			}

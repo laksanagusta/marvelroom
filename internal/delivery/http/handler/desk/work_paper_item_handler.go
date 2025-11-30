@@ -13,6 +13,9 @@ import (
 // WorkPaperItemHandler handles HTTP requests for work paper items
 type WorkPaperItemHandler struct {
 	createUseCase *work_paper_item.CreateWorkPaperItemUseCase
+	getUseCase    *work_paper_item.GetWorkPaperItemUseCase
+	updateUseCase *work_paper_item.UpdateWorkPaperItemUseCase
+	deleteUseCase *work_paper_item.DeleteWorkPaperItemUseCase
 	listUseCase   *work_paper_item.ListWorkPaperItemsUseCase
 	validator     *validator.Validate
 }
@@ -20,10 +23,16 @@ type WorkPaperItemHandler struct {
 // NewWorkPaperItemHandler creates a new handler instance
 func NewWorkPaperItemHandler(
 	createUseCase *work_paper_item.CreateWorkPaperItemUseCase,
+	getUseCase *work_paper_item.GetWorkPaperItemUseCase,
+	updateUseCase *work_paper_item.UpdateWorkPaperItemUseCase,
+	deleteUseCase *work_paper_item.DeleteWorkPaperItemUseCase,
 	listUseCase *work_paper_item.ListWorkPaperItemsUseCase,
 ) *WorkPaperItemHandler {
 	return &WorkPaperItemHandler{
 		createUseCase: createUseCase,
+		getUseCase:    getUseCase,
+		updateUseCase: updateUseCase,
+		deleteUseCase: deleteUseCase,
 		listUseCase:   listUseCase,
 		validator:     validator.New(),
 	}
@@ -68,6 +77,55 @@ func (h *WorkPaperItemHandler) CreateWorkPaperItem(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetWorkPaperItem gets a work paper item by ID
+// @Summary Get Work Paper Item
+// @Description Gets a work paper item by its ID
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper Item ID"
+// @Success 200 {object} StandardResponse{data=work_paper_item.GetResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-paper-items/{id} [get]
+func (h *WorkPaperItemHandler) GetWorkPaperItem(c *fiber.Ctx) error {
+	itemID := c.Params("id")
+	if itemID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Missing work paper item ID",
+			"details": "Work paper item ID is required",
+		})
+	}
+
+	req := work_paper_item.GetRequest{
+		ID: itemID,
+	}
+
+	// Validate request
+	if err := h.validator.Struct(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	// Execute use case
+	ctx := context.Background()
+	response, err := h.getUseCase.Execute(ctx, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to get work paper item",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
 	})
@@ -120,6 +178,112 @@ func (h *WorkPaperItemHandler) ListWorkPaperItems(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateWorkPaperItem updates an existing work paper item
+// @Summary Update Work Paper Item
+// @Description Updates an existing work paper item
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper Item ID"
+// @Param request body work_paper_item.UpdateRequest true "Update Work Paper Item Request"
+// @Success 200 {object} StandardResponse{data=work_paper_item.UpdateResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-paper-items/{id} [put]
+func (h *WorkPaperItemHandler) UpdateWorkPaperItem(c *fiber.Ctx) error {
+	itemID := c.Params("id")
+	if itemID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Missing work paper item ID",
+			"details": "Work paper item ID is required",
+		})
+	}
+
+	var req work_paper_item.UpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	// Set ID from path parameter
+	req.ID = itemID
+
+	// Validate request
+	if err := h.validator.Struct(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	// Execute use case
+	ctx := context.Background()
+	response, err := h.updateUseCase.Execute(ctx, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to update work paper item",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// DeleteWorkPaperItem deletes a work paper item
+// @Summary Delete Work Paper Item
+// @Description Deletes a work paper item (soft delete)
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper Item ID"
+// @Success 200 {object} StandardResponse{data=work_paper_item.DeleteResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-paper-items/{id} [delete]
+func (h *WorkPaperItemHandler) DeleteWorkPaperItem(c *fiber.Ctx) error {
+	itemID := c.Params("id")
+	if itemID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Missing work paper item ID",
+			"details": "Work paper item ID is required",
+		})
+	}
+
+	req := work_paper_item.DeleteRequest{
+		ID: itemID,
+	}
+
+	// Validate request
+	if err := h.validator.Struct(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	// Execute use case
+	ctx := context.Background()
+	response, err := h.deleteUseCase.Execute(ctx, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to delete work paper item",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
 // Backward compatibility methods (deprecated)
 
 // CreateMasterLakipItem creates a new master LAKIP item (deprecated)
@@ -159,7 +323,10 @@ func (h *WorkPaperItemHandler) ListMasterLakipItems(c *fiber.Ctx) error {
 // Backward compatibility factory function (deprecated)
 func NewMasterLakipItemHandler(
 	createUseCase *work_paper_item.CreateWorkPaperItemUseCase,
+	getUseCase *work_paper_item.GetWorkPaperItemUseCase,
+	updateUseCase *work_paper_item.UpdateWorkPaperItemUseCase,
+	deleteUseCase *work_paper_item.DeleteWorkPaperItemUseCase,
 	listUseCase *work_paper_item.ListWorkPaperItemsUseCase,
 ) *WorkPaperItemHandler {
-	return NewWorkPaperItemHandler(createUseCase, listUseCase)
+	return NewWorkPaperItemHandler(createUseCase, getUseCase, updateUseCase, deleteUseCase, listUseCase)
 }

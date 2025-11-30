@@ -9,11 +9,13 @@ import (
 
 type DeleteTransactionWithValidationUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewDeleteTransactionWithValidationUseCase(businessTripRepo repository.BusinessTripRepository) *DeleteTransactionWithValidationUseCase {
+func NewDeleteTransactionWithValidationUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *DeleteTransactionWithValidationUseCase {
 	return &DeleteTransactionWithValidationUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
@@ -49,7 +51,7 @@ func (uc *DeleteTransactionWithValidationUseCase) Execute(ctx context.Context, r
 	}
 
 	// Verify assignee exists and belongs to the business trip
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, req.AssigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, req.AssigneeID)
 	if err != nil {
 		return fmt.Errorf("assignee not found")
 	}

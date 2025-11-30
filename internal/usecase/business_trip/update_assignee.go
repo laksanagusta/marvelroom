@@ -14,13 +14,15 @@ import (
 
 type UpdateAssigneeUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
-	userService     *service.UserService
+	assigneeRepo     repository.AssigneeRepository
+	userService      *service.UserService
 }
 
-func NewUpdateAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, userService *service.UserService) *UpdateAssigneeUseCase {
+func NewUpdateAssigneeUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository, userService *service.UserService) *UpdateAssigneeUseCase {
 	return &UpdateAssigneeUseCase{
 		businessTripRepo: businessTripRepo,
-		userService:     userService,
+		assigneeRepo:     assigneeRepo,
+		userService:      userService,
 	}
 }
 
@@ -71,7 +73,7 @@ func (uc *UpdateAssigneeUseCase) Execute(ctx context.Context, req UpdateAssignee
 		return nil, fmt.Errorf("business trip not found")
 	}
 
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, req.AssigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, req.AssigneeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get assignee: %w", err)
 	}
@@ -83,7 +85,7 @@ func (uc *UpdateAssigneeUseCase) Execute(ctx context.Context, req UpdateAssignee
 		return nil, fmt.Errorf("assignee does not belong to the specified business trip")
 	}
 
-		assignees, err := uc.businessTripRepo.GetAssigneesByBusinessTripID(ctx, assignee.BusinessTripID)
+	assignees, err := uc.assigneeRepo.GetAssigneesByBusinessTripID(ctx, assignee.BusinessTripID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get assignees: %w", err)
 	}
@@ -121,7 +123,7 @@ func (uc *UpdateAssigneeUseCase) Execute(ctx context.Context, req UpdateAssignee
 	assignee.Rank = strings.TrimSpace(req.Rank)         // Keep rank from request as it might be specific to the trip
 
 	// Save updated assignee
-	updatedAssignee, err := uc.businessTripRepo.UpdateAssignee(ctx, assignee)
+	updatedAssignee, err := uc.assigneeRepo.UpdateAssignee(ctx, assignee)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update assignee: %w", err)
 	}

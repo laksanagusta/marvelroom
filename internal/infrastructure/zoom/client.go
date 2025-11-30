@@ -20,39 +20,39 @@ type Client struct {
 }
 
 type CreateMeetingRequest struct {
-	Topic        string                 `json:"topic"`
-	Type         int                    `json:"type"`
-	StartTime    string                 `json:"start_time"`
-	Duration     int                    `json:"duration"`
-	Timezone     string                 `json:"timezone"`
-	Password     string                 `json:"password,omitempty"`
-	Settings     ZoomMeetingSettings    `json:"settings"`
+	Topic     string              `json:"topic"`
+	Type      int                 `json:"type"`
+	StartTime string              `json:"start_time"`
+	Duration  int                 `json:"duration"`
+	Timezone  string              `json:"timezone"`
+	Password  string              `json:"password,omitempty"`
+	Settings  ZoomMeetingSettings `json:"settings"`
 }
 
 type ZoomMeetingSettings struct {
-	WaitingRoom   bool   `json:"waiting_room"`
-	RequirePassword bool `json:"require_password"`
-	AutoRecording string `json:"auto_recording"`
-	MuteUponEntry bool   `json:"mute_upon_entry"`
-	HostVideo     bool   `json:"host_video"`
-	ParticipantVideo bool `json:"participant_video"`
+	WaitingRoom      bool   `json:"waiting_room"`
+	RequirePassword  bool   `json:"require_password"`
+	AutoRecording    string `json:"auto_recording"`
+	MuteUponEntry    bool   `json:"mute_upon_entry"`
+	HostVideo        bool   `json:"host_video"`
+	ParticipantVideo bool   `json:"participant_video"`
 }
 
 type CreateMeetingResponse struct {
-	UUID        string              `json:"uuid"`
-	ID          int64               `json:"id"`
-	HostID      string              `json:"host_id"`
-	Topic       string              `json:"topic"`
-	Type        int                 `json:"type"`
-	Status      string              `json:"status"`
-	StartTime   string              `json:"start_time"`
-	Duration    int                 `json:"duration"`
-	Timezone    string              `json:"timezone"`
-	Password    string              `json:"password"`
-	H323Password string             `json:"h323_password"`
-	PstnPassword string             `json:"pstn_password"`
-	Settings    ZoomMeetingSettings  `json:"settings"`
-	JoinURL     string              `json:"join_url"`
+	UUID         string              `json:"uuid"`
+	ID           int64               `json:"id"`
+	HostID       string              `json:"host_id"`
+	Topic        string              `json:"topic"`
+	Type         int                 `json:"type"`
+	Status       string              `json:"status"`
+	StartTime    string              `json:"start_time"`
+	Duration     int                 `json:"duration"`
+	Timezone     string              `json:"timezone"`
+	Password     string              `json:"password"`
+	H323Password string              `json:"h323_password"`
+	PstnPassword string              `json:"pstn_password"`
+	Settings     ZoomMeetingSettings `json:"settings"`
+	JoinURL      string              `json:"join_url"`
 }
 
 type AuthResponse struct {

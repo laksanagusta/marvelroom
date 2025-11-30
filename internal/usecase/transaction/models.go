@@ -309,12 +309,13 @@ func (r *RecapReportDTO) toAssignees() []excel.Assignee {
 // toAssignee converts AssigneeDTO to Assignee
 func (a *AssigneeDTO) toAssignee() excel.Assignee {
 	return excel.Assignee{
-		Name:         a.Name,
-		SpdNumber:    a.SpdNumber,
-		EmployeeID:   a.EmployeeID,
-		Position:     a.Position,
-		Rank:         a.Rank,
-		Transactions: a.toTransactions(),
+		Name:           a.Name,
+		SpdNumber:      a.SpdNumber,
+		EmployeeID:     a.EmployeeID,
+		Position:       a.Position,
+		Rank:           a.Rank,
+		EmployeeNumber: a.EmployeeNumber,
+		Transactions:   a.toTransactions(),
 	}
 }
 

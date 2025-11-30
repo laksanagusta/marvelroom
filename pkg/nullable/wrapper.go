@@ -7,8 +7,8 @@ import (
 
 // Nullable represents a nullable value with additional methods
 type Nullable[T any] struct {
-	Val       T
-	IsExists  bool
+	Val      T
+	IsExists bool
 }
 
 // NewNullable creates a new Nullable value

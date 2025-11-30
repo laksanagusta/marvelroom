@@ -9,17 +9,19 @@ import (
 
 type ListAssigneesUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewListAssigneesUseCase(businessTripRepo repository.BusinessTripRepository) *ListAssigneesUseCase {
+func NewListAssigneesUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *ListAssigneesUseCase {
 	return &ListAssigneesUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
 type ListAssigneesResponse struct {
-	BusinessTripID string                 `json:"businessTripId"`
-	Assignees      []AssigneeResponse    `json:"assignees"`
+	BusinessTripID string             `json:"businessTripId"`
+	Assignees      []AssigneeResponse `json:"assignees"`
 }
 
 func (uc *ListAssigneesUseCase) Execute(ctx context.Context, businessTripID string) (*ListAssigneesResponse, error) {
@@ -30,7 +32,7 @@ func (uc *ListAssigneesUseCase) Execute(ctx context.Context, businessTripID stri
 	}
 
 	// Get assignees for the business trip
-	assignees, err := uc.businessTripRepo.GetAssigneesByBusinessTripID(ctx, businessTripID)
+	assignees, err := uc.assigneeRepo.GetAssigneesByBusinessTripID(ctx, businessTripID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get assignees: %w", err)
 	}

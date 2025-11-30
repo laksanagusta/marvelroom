@@ -30,14 +30,14 @@ var IndonesianMonths = map[string]time.Month{
 }
 
 type CreateMeetingRequest struct {
-	Title           string                  `json:"title"`
-	Description     string                  `json:"description"`
-	StartTime       string                  `json:"start_time"`
-	Timezone        string                  `json:"timezone"`
-	DurationMinutes int                     `json:"duration_minutes"`
-	HostUserID      string                  `json:"host_user_id"`
-	Options         MeetingOptionsDTO       `json:"options"`
-	Metadata        MeetingMetadataDTO      `json:"metadata"`
+	Title           string             `json:"title"`
+	Description     string             `json:"description"`
+	StartTime       string             `json:"start_time"`
+	Timezone        string             `json:"timezone"`
+	DurationMinutes int                `json:"duration_minutes"`
+	HostUserID      string             `json:"host_user_id"`
+	Options         MeetingOptionsDTO  `json:"options"`
+	Metadata        MeetingMetadataDTO `json:"metadata"`
 }
 
 // parseIndonesianDateTime parses Indonesian datetime format (e.g., "25 Oktober 2025 10:30:00")
@@ -112,12 +112,12 @@ func (req *CreateMeetingRequest) Validate() error {
 }
 
 type MeetingOptionsDTO struct {
-	CreateDriveFolder     bool                  `json:"create_drive_folder"`
-	DriveParentFolderID   string                `json:"drive_parent_folder_id"`
-	DuplicateAbsenceForm  bool                  `json:"duplicate_absence_form"`
-	AbsenceFormTemplateID string                `json:"absence_form_template_id"`
-	Notify                NotificationOptsDTO   `json:"notify"`
-	Zoom                  ZoomOptsDTO           `json:"zoom"`
+	CreateDriveFolder     bool                `json:"create_drive_folder"`
+	DriveParentFolderID   string              `json:"drive_parent_folder_id"`
+	DuplicateAbsenceForm  bool                `json:"duplicate_absence_form"`
+	AbsenceFormTemplateID string              `json:"absence_form_template_id"`
+	Notify                NotificationOptsDTO `json:"notify"`
+	Zoom                  ZoomOptsDTO         `json:"zoom"`
 }
 
 func (opts *MeetingOptionsDTO) Validate() error {
@@ -182,16 +182,16 @@ func (meta *MeetingMetadataDTO) Validate() error {
 }
 
 type CreateMeetingResponse struct {
-	Success           bool   `json:"success"`
-	Message           string `json:"message"`
-	Data              *MeetingResponseData `json:"data,omitempty"`
+	Success bool                 `json:"success"`
+	Message string               `json:"message"`
+	Data    *MeetingResponseData `json:"data,omitempty"`
 }
 
 type MeetingResponseData struct {
-	Meeting           entity.Meeting `json:"meeting"`
-	DriveFolderURL    string          `json:"drive_folder_url,omitempty"`
-	AbsenceFormURL    string          `json:"absence_form_url,omitempty"`
-	NotificationSent  bool            `json:"notification_sent"`
+	Meeting          entity.Meeting `json:"meeting"`
+	DriveFolderURL   string         `json:"drive_folder_url,omitempty"`
+	AbsenceFormURL   string         `json:"absence_form_url,omitempty"`
+	NotificationSent bool           `json:"notification_sent"`
 }
 
 func (req *CreateMeetingRequest) ToDomain() (*entity.Meeting, error) {
@@ -230,4 +230,3 @@ func (req *CreateMeetingRequest) ToDomain() (*entity.Meeting, error) {
 		},
 	}, nil
 }
-

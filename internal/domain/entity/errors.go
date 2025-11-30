@@ -3,12 +3,12 @@ package entity
 import "errors"
 
 var (
-	ErrBusinessTripNotFound    = errors.New("business trip not found")
-	ErrAssigneeNotFound        = errors.New("assignee not found")
-	ErrTransactionNotFound     = errors.New("transaction not found")
-	ErrInvalidDateRange        = errors.New("invalid date range")
-	ErrDuplicateSPDNumber      = errors.New("duplicate SPD number")
-	ErrUnauthorizedAccess      = errors.New("unauthorized access")
+	ErrBusinessTripNotFound = errors.New("business trip not found")
+	ErrAssigneeNotFound     = errors.New("assignee not found")
+	ErrTransactionNotFound  = errors.New("transaction not found")
+	ErrInvalidDateRange     = errors.New("invalid date range")
+	ErrDuplicateSPDNumber   = errors.New("duplicate SPD number")
+	ErrUnauthorizedAccess   = errors.New("unauthorized access")
 
 	// Desk module errors
 	ErrWorkPaperItemNotFound          = errors.New("work paper item not found")
@@ -35,15 +35,17 @@ var (
 	ErrAlreadySigned                  = errors.New("signature already signed")
 	ErrSignatureRejected              = errors.New("signature already rejected")
 	ErrDuplicateSignature             = errors.New("signature already exists for this user and work paper")
+	ErrDigitalSignatureRequired       = errors.New("digital signature is required")
+	ErrInvalidDigitalSignature        = errors.New("digital signature is invalid or not verified")
 
 	// Backward compatibility aliases (deprecated)
-	ErrMasterLakipItemNotFound     = ErrWorkPaperItemNotFound
-	ErrPaperWorkNotFound           = ErrWorkPaperNotFound
-	ErrPaperWorkItemNotFound       = ErrWorkPaperNoteNotFound
-	ErrDuplicatePaperWork          = ErrDuplicateWorkPaper
-	ErrMasterLakipItemTypeRequired = ErrWorkPaperItemTypeRequired
-	ErrMasterLakipItemNumberRequired = ErrWorkPaperItemNumberRequired
+	ErrMasterLakipItemNotFound          = ErrWorkPaperItemNotFound
+	ErrPaperWorkNotFound                = ErrWorkPaperNotFound
+	ErrPaperWorkItemNotFound            = ErrWorkPaperNoteNotFound
+	ErrDuplicatePaperWork               = ErrDuplicateWorkPaper
+	ErrMasterLakipItemTypeRequired      = ErrWorkPaperItemTypeRequired
+	ErrMasterLakipItemNumberRequired    = ErrWorkPaperItemNumberRequired
 	ErrMasterLakipItemStatementRequired = ErrWorkPaperItemStatementRequired
-	ErrInvalidMasterLakipItemType = ErrInvalidWorkPaperItemType
-	ErrPaperWorkIDRequired         = ErrWorkPaperIDRequired
+	ErrInvalidMasterLakipItemType       = ErrInvalidWorkPaperItemType
+	ErrPaperWorkIDRequired              = ErrWorkPaperIDRequired
 )

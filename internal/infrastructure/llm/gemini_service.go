@@ -54,13 +54,6 @@ type geminiCandidate struct {
 	Content geminiContent `json:"content"`
 }
 
-// geminiUsage represents token usage from Gemini API
-type geminiUsage struct {
-	PromptTokenCount     int `json:"promptTokenCount"`
-	CandidatesTokenCount int `json:"candidatesTokenCount"`
-	TotalTokenCount      int `json:"totalTokenCount"`
-}
-
 // NewGeminiService creates a new Gemini service instance
 func NewGeminiService(apiKey string) (service.LLMService, error) {
 	if apiKey == "" {

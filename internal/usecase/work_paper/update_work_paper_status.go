@@ -22,7 +22,7 @@ func NewUpdateWorkPaperStatusUseCase(deskService service.DeskService) *UpdateWor
 // ValidStatusTransitions defines allowed status transitions
 var ValidStatusTransitions = map[string][]string{
 	"draft":         {"ongoing", "draft"},
-	"ongoing":      {"ready_to_sign", "ongoing", "draft"},
+	"ongoing":       {"ready_to_sign", "ongoing", "draft"},
 	"ready_to_sign": {"completed", "ready_to_sign", "ongoing"},
 	"completed":     {"completed", "ready_to_sign"}, // Allow reopening if needed
 }

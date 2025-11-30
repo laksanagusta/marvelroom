@@ -77,4 +77,3 @@ func (g *Generator) GenerateNextNumber(ctx context.Context) (string, error) {
 
 	return nextNumber, nil
 }
-

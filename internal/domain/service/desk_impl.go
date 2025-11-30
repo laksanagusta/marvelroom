@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -15,13 +16,13 @@ import (
 
 // deskService implements the DeskService interface
 type deskService struct {
-	workPaperItemRepo       repository.WorkPaperItemRepository
-	organizationRepo        repository.OrganizationRepository
-	workPaperRepo           repository.WorkPaperRepository
-	workPaperNoteRepo       repository.WorkPaperNoteRepository
-	signatureRepo           repository.WorkPaperSignatureRepository
-	driveService            DriveService
-	llmService              LLMService
+	workPaperItemRepo repository.WorkPaperItemRepository
+	organizationRepo  repository.OrganizationRepository
+	workPaperRepo     repository.WorkPaperRepository
+	workPaperNoteRepo repository.WorkPaperNoteRepository
+	signatureRepo     repository.WorkPaperSignatureRepository
+	driveService      DriveService
+	llmService        LLMService
 }
 
 // NewDeskService creates a new desk service instance
@@ -70,20 +71,55 @@ func (s *deskService) GetWorkPaperItem(ctx context.Context, id string) (*entity.
 	return item, nil
 }
 
-func (s *deskService) UpdateWorkPaperItem(ctx context.Context, id string, req *UpdateWorkPaperItemRequest) (*entity.WorkPaperItem, error) {
-	item, err := s.workPaperItemRepo.GetByID(ctx, id)
+func (s *deskService) UpdateWorkPaperItem(ctx context.Context, req *UpdateWorkPaperItemRequest) (*entity.WorkPaperItem, error) {
+	item, err := s.workPaperItemRepo.GetByID(ctx, req.ID.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get work paper item: %w", err)
 	}
 
+	// Update optional fields
+	if req.IsActive != nil {
+		if *req.IsActive {
+			item.Activate()
+		} else {
+			item.Deactivate()
+		}
+	}
+
+	// If IsActive is not provided, just update other fields
 	err = item.Update(req.Type, req.Number, req.Statement, req.Explanation, req.FillingGuide, req.SortOrder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper item: %w", err)
 	}
 
+	// Update parent ID if provided
+	if req.ParentID != nil {
+		item.ParentID = req.ParentID
+		item.Level = req.Level
+		// Also update the timestamp when parent changes
+		item.UpdatedAt = time.Now()
+	}
+
 	updatedItem, err := s.workPaperItemRepo.Update(ctx, item)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save work paper item: %w", err)
+	}
+
+	return updatedItem, nil
+}
+
+func (s *deskService) DeleteWorkPaperItem(ctx context.Context, id uuid.UUID) (*entity.WorkPaperItem, error) {
+	item, err := s.workPaperItemRepo.GetByID(ctx, id.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper item: %w", err)
+	}
+
+	// Soft delete by deactivating
+	item.Deactivate()
+
+	updatedItem, err := s.workPaperItemRepo.Update(ctx, item)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete work paper item: %w", err)
 	}
 
 	return updatedItem, nil
@@ -547,7 +583,9 @@ func (s *deskService) UpdateMasterLakipItem(ctx context.Context, id string, req 
 		FillingGuide: req.FillingGuide,
 		SortOrder:    req.SortOrder,
 	}
-	return s.UpdateWorkPaperItem(ctx, id, newReq)
+	// Set ID from parameter
+	newReq.ID, _ = uuid.Parse(id)
+	return s.UpdateWorkPaperItem(ctx, newReq)
 }
 
 func (s *deskService) DeactivateMasterLakipItem(ctx context.Context, id string) error {
@@ -860,6 +898,16 @@ func (s *deskService) GetWorkPaperSignaturesByUserID(ctx context.Context, userID
 	return signatures, nil
 }
 
+func (s *deskService) GetPendingSignaturesByUserID(ctx context.Context, userID string) ([]*entity.WorkPaperSignature, error) {
+	// Get pending signatures by user ID
+	signatures, err := s.signatureRepo.GetPendingByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending signatures by user ID: %w", err)
+	}
+
+	return signatures, nil
+}
+
 func (s *deskService) GetPendingSignaturesByPaperID(ctx context.Context, paperID string) ([]*entity.WorkPaperSignature, error) {
 	// Parse work paper ID
 	workPaperID, err := uuid.Parse(paperID)
@@ -934,5 +982,235 @@ func (s *deskService) GetWorkPapersWithSignatures(ctx context.Context, page, lim
 	return workPapersWithSignatures, nil
 }
 
-// Helper functions
+func (s *deskService) ManageSigners(ctx context.Context, req *ManageSignersRequest) (*ManageSignersResponse, error) {
+	// Parse work paper ID
+	workPaperID, err := uuid.Parse(req.WorkPaperID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid work paper ID: %w", err)
+	}
 
+	// Check if work paper exists
+	_, err = s.workPaperRepo.GetByID(ctx, req.WorkPaperID)
+	if err != nil {
+		return nil, fmt.Errorf("work paper not found: %w", err)
+	}
+
+	var signerResponses []SignerResponse
+
+	switch req.Action {
+	case "add":
+		for _, signerData := range req.Signers {
+			// Check if signature already exists
+			_, err := s.signatureRepo.GetByWorkPaperIDAndUserID(ctx, workPaperID, signerData.UserID)
+			if err == nil {
+				// Signature already exists, skip
+				continue
+			} else if err != entity.ErrSignatureNotFound {
+				return nil, fmt.Errorf("failed to check existing signature: %w", err)
+			}
+
+			// Create new signature
+			signature, err := entity.NewWorkPaperSignature(workPaperID, signerData.UserID, signerData.UserName, signerData.SignatureType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create signature: %w", err)
+			}
+
+			// Set user details
+			signature.SetUserDetails(signerData.UserEmail, signerData.UserRole)
+
+			// Save to database
+			err = s.signatureRepo.Create(ctx, signature)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create signature: %w", err)
+			}
+
+			signerResponses = append(signerResponses, SignerResponse{
+				SignatureID:   signature.ID.String(),
+				UserID:        signature.UserID,
+				UserName:      signature.UserName,
+				UserEmail:     signature.GetUserEmail(),
+				UserRole:      signature.GetUserRole(),
+				SignatureType: signature.SignatureType,
+				Status:        signature.Status,
+				CreatedAt:     signature.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			})
+		}
+
+	case "remove":
+		for _, signerData := range req.Signers {
+			// Get existing signature
+			signature, err := s.signatureRepo.GetByWorkPaperIDAndUserID(ctx, workPaperID, signerData.UserID)
+			if err != nil {
+				if err == entity.ErrSignatureNotFound {
+					continue // Skip if not found
+				}
+				return nil, fmt.Errorf("failed to get signature: %w", err)
+			}
+
+			// Delete signature
+			err = s.signatureRepo.Delete(ctx, signature.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to delete signature: %w", err)
+			}
+		}
+
+	case "replace":
+		// First, remove all existing signatures for the work paper
+		existingSignatures, err := s.signatureRepo.GetByWorkPaperID(ctx, workPaperID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get existing signatures: %w", err)
+		}
+
+		for _, existingSig := range existingSignatures {
+			err = s.signatureRepo.Delete(ctx, existingSig.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to delete existing signature: %w", err)
+			}
+		}
+
+		// Then add new signatures
+		for _, signerData := range req.Signers {
+			signature, err := entity.NewWorkPaperSignature(workPaperID, signerData.UserID, signerData.UserName, signerData.SignatureType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create signature: %w", err)
+			}
+
+			signature.SetUserDetails(signerData.UserEmail, signerData.UserRole)
+
+			err = s.signatureRepo.Create(ctx, signature)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create signature: %w", err)
+			}
+
+			signerResponses = append(signerResponses, SignerResponse{
+				SignatureID:   signature.ID.String(),
+				UserID:        signature.UserID,
+				UserName:      signature.UserName,
+				UserEmail:     signature.GetUserEmail(),
+				UserRole:      signature.GetUserRole(),
+				SignatureType: signature.SignatureType,
+				Status:        signature.Status,
+				CreatedAt:     signature.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			})
+		}
+
+	default:
+		return nil, fmt.Errorf("invalid action: %s", req.Action)
+	}
+
+	return &ManageSignersResponse{
+		WorkPaperID: req.WorkPaperID,
+		Action:      req.Action,
+		Signers:     signerResponses,
+		Message:     fmt.Sprintf("Successfully completed %s action on signers", req.Action),
+	}, nil
+}
+
+func (s *deskService) SignWorkPaperWithUser(ctx context.Context, signatureID string, userID string) (*entity.WorkPaperSignature, error) {
+	// Parse signature ID
+	id, err := uuid.Parse(signatureID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid signature ID: %w", err)
+	}
+
+	// Get signature from database
+	signature, err := s.signatureRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get signature: %w", err)
+	}
+
+	// Verify that the signature belongs to the specified user
+	if signature.UserID != userID {
+		return nil, fmt.Errorf("signature does not belong to user: %s", userID)
+	}
+
+	// Sign the work paper
+	err = signature.Sign("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign work paper: %w", err)
+	}
+
+	// Update in database
+	err = s.signatureRepo.Update(ctx, signature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update signature: %w", err)
+	}
+
+	log.Printf("Work paper signed with user: SignatureID=%s, UserID=%s", signature.ID, signature.UserID)
+
+	return signature, nil
+}
+
+func (s *deskService) ListWorkPaperSignatures(ctx context.Context, req *ListWorkPaperSignaturesRequest) (*ListWorkPaperSignaturesResponse, error) {
+	// Build query params
+	queryParams := &pagination.QueryParams{
+		Pagination: pagination.Pagination{
+			Page:  req.Page,
+			Limit: req.Limit,
+		},
+		Filters: []pagination.Filter{},
+		Sorts:   []pagination.Sort{},
+	}
+
+	// Add filters
+	if req.UserID != "" {
+		queryParams.Filters = append(queryParams.Filters, pagination.Filter{
+			Field:    "user_id",
+			Operator: "eq",
+			Value:    req.UserID,
+		})
+	}
+
+	if req.Status != "" {
+		queryParams.Filters = append(queryParams.Filters, pagination.Filter{
+			Field:    "status",
+			Operator: "eq",
+			Value:    req.Status,
+		})
+	}
+
+	if req.WorkPaperID != "" {
+		queryParams.Filters = append(queryParams.Filters, pagination.Filter{
+			Field:    "work_paper_id",
+			Operator: "eq",
+			Value:    req.WorkPaperID,
+		})
+	}
+
+	// Add sorting
+	if req.SortBy != "" {
+		order := "asc"
+		if req.SortDirection == "desc" {
+			order = "desc"
+		}
+		queryParams.Sorts = append(queryParams.Sorts, pagination.Sort{
+			Field: req.SortBy,
+			Order: order,
+		})
+	} else {
+		// Default sort by created_at desc
+		queryParams.Sorts = append(queryParams.Sorts, pagination.Sort{
+			Field: "created_at",
+			Order: "desc",
+		})
+	}
+
+	// Get signatures
+	signatures, total, err := s.signatureRepo.List(ctx, queryParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list signatures: %w", err)
+	}
+
+	// Calculate pagination metadata
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &ListWorkPaperSignaturesResponse{
+		Signatures:  signatures,
+		TotalItems:  total,
+		TotalPages:  totalPages,
+		CurrentPage: req.Page,
+		Limit:       req.Limit,
+	}, nil
+}
+
+// Helper functions

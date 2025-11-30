@@ -13,11 +13,13 @@ import (
 
 type UpdateTransactionUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewUpdateTransactionUseCase(businessTripRepo repository.BusinessTripRepository) *UpdateTransactionUseCase {
+func NewUpdateTransactionUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *UpdateTransactionUseCase {
 	return &UpdateTransactionUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
@@ -69,7 +71,7 @@ func (uc *UpdateTransactionUseCase) Execute(ctx context.Context, req UpdateTrans
 		return nil, fmt.Errorf("business trip not found")
 	}
 
-	assignee, err := uc.businessTripRepo.GetAssigneeByID(ctx, req.AssigneeID)
+	assignee, err := uc.assigneeRepo.GetAssigneeByID(ctx, req.AssigneeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get assignee: %w", err)
 	}
@@ -93,7 +95,7 @@ func (uc *UpdateTransactionUseCase) Execute(ctx context.Context, req UpdateTrans
 		return nil, fmt.Errorf("transaction does not belong to the specified assignee")
 	}
 
-		txType := entity.TransactionType(req.Type)
+	txType := entity.TransactionType(req.Type)
 	subtotal := req.Amount
 
 	// For accommodation type, calculate subtotal based on total night

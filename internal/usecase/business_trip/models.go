@@ -71,10 +71,10 @@ func (r BusinessTripRequest) Validate() error {
 	// Validate status if provided
 	if r.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":    true,
-			"ongoing":  true,
+			"draft":     true,
+			"ongoing":   true,
 			"completed": true,
-			"canceled": true,
+			"canceled":  true,
 		}
 		if !validStatuses[r.Status] {
 			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
@@ -260,33 +260,33 @@ func (r TransactionRequest) Validate() error {
 
 // UpdateBusinessTripRequest represents the request body for updating a business trip
 type UpdateBusinessTripRequest struct {
-	BusinessTripID    string              `params:"tripId" json:"tripId"`
+	BusinessTripID     string              `params:"tripId" json:"tripId"`
 	BusinessTripNumber nullable.NullString `json:"business_trip_number"`
-	StartDate         nullable.NullString `json:"start_date"`
-	EndDate           nullable.NullString `json:"end_date"`
-	ActivityPurpose   nullable.NullString `json:"activity_purpose"`
-	DestinationCity   nullable.NullString `json:"destination_city"`
-	SPDDate           nullable.NullString `json:"spd_date"`
-	DepartureDate     nullable.NullString `json:"departure_date"`
-	ReturnDate        nullable.NullString `json:"return_date"`
-	Status            nullable.NullString `json:"status"`
-	DocumentLink      nullable.NullString `json:"document_link"`
+	StartDate          nullable.NullString `json:"start_date"`
+	EndDate            nullable.NullString `json:"end_date"`
+	ActivityPurpose    nullable.NullString `json:"activity_purpose"`
+	DestinationCity    nullable.NullString `json:"destination_city"`
+	SPDDate            nullable.NullString `json:"spd_date"`
+	DepartureDate      nullable.NullString `json:"departure_date"`
+	ReturnDate         nullable.NullString `json:"return_date"`
+	Status             nullable.NullString `json:"status"`
+	DocumentLink       nullable.NullString `json:"document_link"`
 }
 
 // UpdateBusinessTripWithAssigneesRequest represents the request body for updating a business trip with full replace of assignees and transactions
 type UpdateBusinessTripWithAssigneesRequest struct {
-	BusinessTripID    string            `params:"tripId" json:"tripId"`
+	BusinessTripID     string            `params:"tripId" json:"tripId"`
 	BusinessTripNumber string            `json:"business_trip_number"`
-	StartDate         string            `json:"start_date"`
-	EndDate           string            `json:"end_date"`
-	ActivityPurpose   string            `json:"activity_purpose"`
-	DestinationCity   string            `json:"destination_city"`
-	SPDDate           string            `json:"spd_date"`
-	DepartureDate     string            `json:"departure_date"`
-	ReturnDate        string            `json:"return_date"`
-	Status            string            `json:"status"`
-	DocumentLink      string            `json:"document_link"`
-	Assignees         []AssigneeRequest `json:"assignees"`
+	StartDate          string            `json:"start_date"`
+	EndDate            string            `json:"end_date"`
+	ActivityPurpose    string            `json:"activity_purpose"`
+	DestinationCity    string            `json:"destination_city"`
+	SPDDate            string            `json:"spd_date"`
+	DepartureDate      string            `json:"departure_date"`
+	ReturnDate         string            `json:"return_date"`
+	Status             string            `json:"status"`
+	DocumentLink       string            `json:"document_link"`
+	Assignees          []AssigneeRequest `json:"assignees"`
 }
 
 func (r UpdateBusinessTripRequest) Validate() error {
@@ -322,10 +322,10 @@ func (r UpdateBusinessTripRequest) Validate() error {
 	// Validate status if provided
 	if r.Status.IsSet() && r.Status.String != "" {
 		validStatuses := map[string]bool{
-			"draft":    true,
-			"ongoing":  true,
+			"draft":     true,
+			"ongoing":   true,
 			"completed": true,
-			"canceled": true,
+			"canceled":  true,
 		}
 		if !validStatuses[r.Status.String] {
 			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
@@ -383,10 +383,10 @@ func (r UpdateBusinessTripWithAssigneesRequest) Validate() error {
 	// Validate status if provided
 	if r.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":    true,
-			"ongoing":  true,
+			"draft":     true,
+			"ongoing":   true,
 			"completed": true,
-			"canceled": true,
+			"canceled":  true,
 		}
 		if !validStatuses[r.Status] {
 			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
@@ -484,21 +484,21 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 
 // BusinessTripResponse represents the response body for a business trip
 type BusinessTripResponse struct {
-	ID                string             `json:"id"`
+	ID                 string             `json:"id"`
 	BusinessTripNumber string             `json:"business_trip_number"`
-	StartDate         string             `json:"start_date"`
-	EndDate           string             `json:"end_date"`
-	ActivityPurpose   string             `json:"activity_purpose"`
-	DestinationCity   string             `json:"destination_city"`
-	SPDDate           string             `json:"spd_date"`
-	DepartureDate     string             `json:"departure_date"`
-	ReturnDate        string             `json:"return_date"`
-	Status            string             `json:"status"`
-	DocumentLink      string             `json:"document_link"`
-	TotalCost         float64            `json:"total_cost"`
-	Assignees         []AssigneeResponse `json:"assignees"`
-	CreatedAt         string             `json:"created_at"`
-	UpdatedAt         string             `json:"updated_at"`
+	StartDate          string             `json:"start_date"`
+	EndDate            string             `json:"end_date"`
+	ActivityPurpose    string             `json:"activity_purpose"`
+	DestinationCity    string             `json:"destination_city"`
+	SPDDate            string             `json:"spd_date"`
+	DepartureDate      string             `json:"departure_date"`
+	ReturnDate         string             `json:"return_date"`
+	Status             string             `json:"status"`
+	DocumentLink       string             `json:"document_link"`
+	TotalCost          float64            `json:"total_cost"`
+	Assignees          []AssigneeResponse `json:"assignees"`
+	CreatedAt          string             `json:"created_at"`
+	UpdatedAt          string             `json:"updated_at"`
 }
 
 // AssigneeResponse represents the response body for an assignee
@@ -582,10 +582,10 @@ func (p QueryParams) Validate() error {
 	// Validate status if provided
 	if p.Status != "" {
 		validStatuses := map[string]bool{
-			"draft":    true,
-			"ongoing":  true,
+			"draft":     true,
+			"ongoing":   true,
 			"completed": true,
-			"canceled": true,
+			"canceled":  true,
 		}
 		if !validStatuses[p.Status] {
 			return validation.NewError("status", "must be one of: draft, ongoing, completed, canceled")
@@ -650,21 +650,21 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 	}
 
 	return &BusinessTripResponse{
-		ID:                bt.GetID(),
+		ID:                 bt.GetID(),
 		BusinessTripNumber: bt.GetBusinessTripNumber(),
-		StartDate:         bt.GetStartDate().Format("2006-01-02"),
-		EndDate:           bt.GetEndDate().Format("2006-01-02"),
-		ActivityPurpose:   bt.GetActivityPurpose(),
-		DestinationCity:   bt.GetDestinationCity(),
-		SPDDate:           bt.GetSPDDate().Format("2006-01-02"),
-		DepartureDate:     bt.GetDepartureDate().Format("2006-01-02"),
-		ReturnDate:        bt.GetReturnDate().Format("2006-01-02"),
-		Status:            string(bt.GetStatus()),
-		DocumentLink:      bt.GetDocumentLink(),
-		TotalCost:         bt.GetTotalCost(),
-		Assignees:         assignees,
-		CreatedAt:         bt.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:         bt.UpdatedAt.Format(time.RFC3339),
+		StartDate:          bt.GetStartDate().Format("2006-01-02"),
+		EndDate:            bt.GetEndDate().Format("2006-01-02"),
+		ActivityPurpose:    bt.GetActivityPurpose(),
+		DestinationCity:    bt.GetDestinationCity(),
+		SPDDate:            bt.GetSPDDate().Format("2006-01-02"),
+		DepartureDate:      bt.GetDepartureDate().Format("2006-01-02"),
+		ReturnDate:         bt.GetReturnDate().Format("2006-01-02"),
+		Status:             string(bt.GetStatus()),
+		DocumentLink:       bt.GetDocumentLink(),
+		TotalCost:          bt.GetTotalCost(),
+		Assignees:          assignees,
+		CreatedAt:          bt.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:          bt.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

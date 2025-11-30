@@ -17,45 +17,45 @@ const (
 type RequirementType string
 
 const (
-	RequirementTypeRequired      RequirementType = "required"
+	RequirementTypeRequired    RequirementType = "required"
 	RequirementTypeRecommended RequirementType = "recommended"
 )
 
 // MasterVaccine represents a master vaccine entity
 type MasterVaccine struct {
-	ID              string      `db:"id"`
-	VaccineCode     string      `db:"vaccine_code"`
-	VaccineNameID   string      `db:"vaccine_name_id"`
-	VaccineNameEN   string      `db:"vaccine_name_en"`
-	DescriptionID   *string     `db:"description_id"`
-	DescriptionEN   *string     `db:"description_en"`
-	VaccineType     VaccineType `db:"vaccine_type"`
-	IsActive        bool        `db:"is_active"`
-	CreatedAt       time.Time   `db:"created_at"`
-	UpdatedAt       time.Time   `db:"updated_at"`
+	ID            string      `db:"id"`
+	VaccineCode   string      `db:"vaccine_code"`
+	VaccineNameID string      `db:"vaccine_name_id"`
+	VaccineNameEN string      `db:"vaccine_name_en"`
+	DescriptionID *string     `db:"description_id"`
+	DescriptionEN *string     `db:"description_en"`
+	VaccineType   VaccineType `db:"vaccine_type"`
+	IsActive      bool        `db:"is_active"`
+	CreatedAt     time.Time   `db:"created_at"`
+	UpdatedAt     time.Time   `db:"updated_at"`
 }
 
 // Country represents a country entity
 type Country struct {
-	ID           string    `db:"id"`
-	CountryCode  string    `db:"country_code"`
-	CountryNameID string   `db:"country_name_id"`
-	CountryNameEN string   `db:"country_name_en"`
-	IsActive     bool      `db:"is_active"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+	ID            string    `db:"id"`
+	CountryCode   string    `db:"country_code"`
+	CountryNameID string    `db:"country_name_id"`
+	CountryNameEN string    `db:"country_name_en"`
+	IsActive      bool      `db:"is_active"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
 }
 
 // CountryVaccineRequirement represents vaccine requirements for a country
 type CountryVaccineRequirement struct {
-	ID              string           `db:"id"`
-	CountryID       string           `db:"country_id"`
-	VaccineID       string           `db:"vaccine_id"`
-	RequirementType RequirementType  `db:"requirement_type"`
-	CDCData         *string          `db:"cdc_data"`
-	CachedAt        time.Time        `db:"cached_at"`
-	ExpiresAt       time.Time        `db:"expires_at"`
-	CreatedAt       time.Time        `db:"created_at"`
+	ID              string          `db:"id"`
+	CountryID       string          `db:"country_id"`
+	VaccineID       string          `db:"vaccine_id"`
+	RequirementType RequirementType `db:"requirement_type"`
+	CDCData         *string         `db:"cdc_data"`
+	CachedAt        time.Time       `db:"cached_at"`
+	ExpiresAt       time.Time       `db:"expires_at"`
+	CreatedAt       time.Time       `db:"created_at"`
 }
 
 // NewMasterVaccine creates a new master vaccine with validation
@@ -319,30 +319,31 @@ func isValidRequirementType(requirementType RequirementType) bool {
 	}
 }
 
-
 // Getters
 
-func (mv *MasterVaccine) GetID() string            { return mv.ID }
-func (mv *MasterVaccine) GetVaccineCode() string   { return mv.VaccineCode }
-func (mv *MasterVaccine) GetVaccineNameID() string { return mv.VaccineNameID }
-func (mv *MasterVaccine) GetVaccineNameEN() string { return mv.VaccineNameEN }
+func (mv *MasterVaccine) GetID() string               { return mv.ID }
+func (mv *MasterVaccine) GetVaccineCode() string      { return mv.VaccineCode }
+func (mv *MasterVaccine) GetVaccineNameID() string    { return mv.VaccineNameID }
+func (mv *MasterVaccine) GetVaccineNameEN() string    { return mv.VaccineNameEN }
 func (mv *MasterVaccine) GetVaccineType() VaccineType { return mv.VaccineType }
-func (mv *MasterVaccine) GetIsActive() bool        { return mv.IsActive }
-func (mv *MasterVaccine) GetCreatedAt() time.Time  { return mv.CreatedAt }
-func (mv *MasterVaccine) GetUpdatedAt() time.Time  { return mv.UpdatedAt }
+func (mv *MasterVaccine) GetIsActive() bool           { return mv.IsActive }
+func (mv *MasterVaccine) GetCreatedAt() time.Time     { return mv.CreatedAt }
+func (mv *MasterVaccine) GetUpdatedAt() time.Time     { return mv.UpdatedAt }
 
-func (c *Country) GetID() string           { return c.ID }
-func (c *Country) GetCountryCode() string  { return c.CountryCode }
+func (c *Country) GetID() string            { return c.ID }
+func (c *Country) GetCountryCode() string   { return c.CountryCode }
 func (c *Country) GetCountryNameID() string { return c.CountryNameID }
 func (c *Country) GetCountryNameEN() string { return c.CountryNameEN }
-func (c *Country) GetIsActive() bool       { return c.IsActive }
-func (c *Country) GetCreatedAt() time.Time { return c.CreatedAt }
-func (c *Country) GetUpdatedAt() time.Time { return c.UpdatedAt }
+func (c *Country) GetIsActive() bool        { return c.IsActive }
+func (c *Country) GetCreatedAt() time.Time  { return c.CreatedAt }
+func (c *Country) GetUpdatedAt() time.Time  { return c.UpdatedAt }
 
-func (cvr *CountryVaccineRequirement) GetID() string              { return cvr.ID }
-func (cvr *CountryVaccineRequirement) GetCountryID() string       { return cvr.CountryID }
-func (cvr *CountryVaccineRequirement) GetVaccineID() string       { return cvr.VaccineID }
-func (cvr *CountryVaccineRequirement) GetRequirementType() RequirementType { return cvr.RequirementType }
-func (cvr *CountryVaccineRequirement) GetCachedAt() time.Time     { return cvr.CachedAt }
-func (cvr *CountryVaccineRequirement) GetExpiresAt() time.Time    { return cvr.ExpiresAt }
-func (cvr *CountryVaccineRequirement) GetCreatedAt() time.Time    { return cvr.CreatedAt }
+func (cvr *CountryVaccineRequirement) GetID() string        { return cvr.ID }
+func (cvr *CountryVaccineRequirement) GetCountryID() string { return cvr.CountryID }
+func (cvr *CountryVaccineRequirement) GetVaccineID() string { return cvr.VaccineID }
+func (cvr *CountryVaccineRequirement) GetRequirementType() RequirementType {
+	return cvr.RequirementType
+}
+func (cvr *CountryVaccineRequirement) GetCachedAt() time.Time  { return cvr.CachedAt }
+func (cvr *CountryVaccineRequirement) GetExpiresAt() time.Time { return cvr.ExpiresAt }
+func (cvr *CountryVaccineRequirement) GetCreatedAt() time.Time { return cvr.CreatedAt }

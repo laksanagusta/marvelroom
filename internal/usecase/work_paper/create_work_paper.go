@@ -25,9 +25,19 @@ func NewCreateWorkPaperUseCase(deskService service.DeskService) *CreateWorkPaper
 
 // CreateRequest represents the request payload for creating a work paper
 type CreateRequest struct {
-	OrganizationID string `json:"organization_id" validate:"required"`
-	Year           int    `json:"year" validate:"required,min=2000,max=2100"`
-	Semester       int    `json:"semester" validate:"required,oneof=1 2"`
+	OrganizationID string                `json:"organization_id" validate:"required"`
+	Year           int                   `json:"year" validate:"required,min=2000,max=2100"`
+	Semester       int                   `json:"semester" validate:"required,oneof=1 2"`
+	Signers        []CreateSignerRequest `json:"signers,omitempty"`
+}
+
+// CreateSignerRequest represents the request payload for creating a signer
+type CreateSignerRequest struct {
+	UserID        string `json:"user_id" validate:"required"`
+	UserName      string `json:"user_name" validate:"required"`
+	UserEmail     string `json:"user_email,omitempty"`
+	UserRole      string `json:"user_role,omitempty"`
+	SignatureType string `json:"signature_type" validate:"required,oneof=digital manual approval"`
 }
 
 // CreateResponse represents the response payload for creating a work paper
@@ -56,6 +66,25 @@ func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest
 		return nil, err
 	}
 
+	// Create signatures if signers are provided
+	if len(req.Signers) > 0 {
+		for _, signer := range req.Signers {
+			signatureReq := &service.CreateWorkPaperSignatureRequest{
+				WorkPaperID:   workPaper.ID.String(),
+				UserID:        signer.UserID,
+				UserName:      signer.UserName,
+				UserEmail:     signer.UserEmail,
+				UserRole:      signer.UserRole,
+				SignatureType: signer.SignatureType,
+			}
+
+			_, err := uc.deskService.CreateWorkPaperSignature(ctx, signatureReq)
+			if err != nil {
+				continue
+			}
+		}
+	}
+
 	// Convert to response
 	response := &CreateResponse{
 		ID:             workPaper.ID.String(),
@@ -73,8 +102,8 @@ func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest
 // Backward compatibility aliases (deprecated)
 type (
 	CreatePaperWorkUseCase = CreateWorkPaperUseCase
-	CreateRequestLegacy  = CreateRequest
-	CreateResponseLegacy = CreateResponse
+	CreateRequestLegacy    = CreateRequest
+	CreateResponseLegacy   = CreateResponse
 )
 
 // NewCreatePaperWorkUseCase creates a new use case instance (deprecated)

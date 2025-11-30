@@ -28,16 +28,16 @@ type Organization struct {
 
 // IdentityData represents the data field from identity service response
 type IdentityData struct {
-	ID            string       `json:"id"`
-	EmployeeID    string       `json:"employee_id"`
-	Username      string       `json:"username"`
-	FirstName     string       `json:"first_name"`
-	LastName      string       `json:"last_name"`
-	PhoneNumber   string       `json:"phone_number"`
-	Roles         []Role       `json:"roles"`
-	Permissions   interface{}  `json:"permissions"`
-	Organization  Organization `json:"organization"`
-	Scopes        interface{}  `json:"scopes"`
+	ID           string       `json:"id"`
+	EmployeeID   string       `json:"employee_id"`
+	Username     string       `json:"username"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	PhoneNumber  string       `json:"phone_number"`
+	Roles        []Role       `json:"roles"`
+	Permissions  interface{}  `json:"permissions"`
+	Organization Organization `json:"organization"`
+	Scopes       interface{}  `json:"scopes"`
 }
 
 // IdentityResponse represents the response from identity service

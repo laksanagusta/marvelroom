@@ -80,4 +80,3 @@ func (s *MeetingService) CreateMeeting(ctx context.Context, req entity.Meeting) 
 
 	return result, nil
 }
-

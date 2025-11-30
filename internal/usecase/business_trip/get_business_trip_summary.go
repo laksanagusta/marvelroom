@@ -9,11 +9,13 @@ import (
 
 type GetBusinessTripSummaryUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	assigneeRepo     repository.AssigneeRepository
 }
 
-func NewGetBusinessTripSummaryUseCase(businessTripRepo repository.BusinessTripRepository) *GetBusinessTripSummaryUseCase {
+func NewGetBusinessTripSummaryUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository) *GetBusinessTripSummaryUseCase {
 	return &GetBusinessTripSummaryUseCase{
 		businessTripRepo: businessTripRepo,
+		assigneeRepo:     assigneeRepo,
 	}
 }
 
@@ -26,7 +28,7 @@ func (uc *GetBusinessTripSummaryUseCase) Execute(ctx context.Context, businessTr
 		return nil, entity.ErrBusinessTripNotFound
 	}
 
-	assignees, err := uc.businessTripRepo.GetAssigneesByBusinessTripID(ctx, businessTripID)
+	assignees, err := uc.assigneeRepo.GetAssigneesByBusinessTripID(ctx, businessTripID)
 	if err != nil {
 		return nil, err
 	}

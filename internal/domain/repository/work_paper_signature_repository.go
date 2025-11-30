@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"sandbox/internal/domain/entity"
+	"sandbox/pkg/pagination"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,11 +26,17 @@ type WorkPaperSignatureRepository interface {
 	// GetByUserID gets all signatures by user ID
 	GetByUserID(ctx context.Context, userID string) ([]*entity.WorkPaperSignature, error)
 
+	// GetPendingByUserID gets all pending signatures by user ID
+	GetPendingByUserID(ctx context.Context, userID string) ([]*entity.WorkPaperSignature, error)
+
 	// GetPendingSignatures gets all pending signatures for a work paper
 	GetPendingSignatures(ctx context.Context, workPaperID uuid.UUID) ([]*entity.WorkPaperSignature, error)
 
 	// GetSignedSignatures gets all signed signatures for a work paper
 	GetSignedSignatures(ctx context.Context, workPaperID uuid.UUID) ([]*entity.WorkPaperSignature, error)
+
+	// List gets work paper signatures with filtering and pagination
+	List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperSignature, int64, error)
 
 	// Update updates a work paper signature
 	Update(ctx context.Context, signature *entity.WorkPaperSignature) error
@@ -49,8 +56,8 @@ type WorkPaperSignatureRepository interface {
 
 // SignatureStats represents signature statistics
 type SignatureStats struct {
-	Total     int `json:"total"`
-	Pending   int `json:"pending"`
-	Signed    int `json:"signed"`
-	Rejected  int `json:"rejected"`
+	Total    int `json:"total"`
+	Pending  int `json:"pending"`
+	Signed   int `json:"signed"`
+	Rejected int `json:"rejected"`
 }

@@ -2,14 +2,14 @@ package http
 
 import (
 	"sandbox/internal/delivery/http/handler"
-	"sandbox/internal/delivery/http/middleware"
 	deskHandler "sandbox/internal/delivery/http/handler/desk"
+	"sandbox/internal/delivery/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // SetupRoutes configures all application routes
-func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, cryptoHandler *handler.CryptoHandler) {
+func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler) {
 	api := app.Group("/api")
 
 	api.Post("/upload", middleware.AuthMiddleware(), transactionHandler.UploadAndExtract)
@@ -26,6 +26,9 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 		r.Put("/:tripId", businessTripHandler.UpdateBusinessTrip)
 		r.Put("/:tripId/with-assignees", businessTripHandler.UpdateBusinessTripWithAssignees)
 		r.Delete("/:tripId", businessTripHandler.DeleteBusinessTrip)
+
+		// Dashboard endpoint
+		r.Get("/dashboard", businessTripDashboardHandler.GetDashboard)
 
 		r.Route("/:tripId/assignees", func(r fiber.Router) {
 			r.Post("/", assigneeHandler.CreateAssignee)
@@ -50,6 +53,9 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 		r.Route("/work-paper-items", func(r fiber.Router) {
 			r.Post("/", workPaperItemHandler.CreateWorkPaperItem)
 			r.Get("/", workPaperItemHandler.ListWorkPaperItems)
+			r.Get("/:id", workPaperItemHandler.GetWorkPaperItem)
+			r.Put("/:id", workPaperItemHandler.UpdateWorkPaperItem)
+			r.Delete("/:id", workPaperItemHandler.DeleteWorkPaperItem)
 		})
 
 		// Work Paper routes (new)
@@ -59,6 +65,9 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 			r.Get("/status-transitions", workPaperHandler.GetStatusTransitions)
 			r.Get("/:id", workPaperHandler.GetWorkPaperByID)
 			r.Put("/:id/status", workPaperHandler.UpdateWorkPaperStatus)
+			r.Put("/:id/signers", workPaperHandler.ManageSigners)
+			r.Post("/:id/assign-signers", workPaperHandler.AssignSignersBulk)
+			r.Get("/:workPaperId/signatures", signatureHandler.GetWorkPaperSignaturesByWorkPaperID)
 		})
 
 		// Work Paper Note routes (new)
@@ -67,18 +76,14 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 
 		// Work Paper Signature routes
 		r.Route("/work-paper-signatures", func(r fiber.Router) {
+			r.Get("/", signatureHandler.ListWorkPaperSignatures)
 			r.Post("/", signatureHandler.CreateWorkPaperSignature)
 			r.Get("/:id", signatureHandler.GetWorkPaperSignature)
 			r.Post("/:id/sign", signatureHandler.SignWorkPaper)
 			r.Post("/:id/reject", signatureHandler.RejectWorkPaperSignature)
 			r.Post("/:id/reset", signatureHandler.ResetWorkPaperSignature)
-		})
-
-		// Work Paper signatures by paper ID
-		r.Route("/work-papers/:paperId", func(r fiber.Router) {
-			r.Get("/signatures", signatureHandler.GetWorkPaperSignatures)
-			r.Get("/pending-signatures", signatureHandler.GetPendingSignaturesByPaperID)
-			r.Get("/signature-stats", signatureHandler.GetSignatureStatsByPaperID)
+			r.Post("/:id/digital-sign", signatureHandler.CreateDigitalSignature)
+			r.Post("/:id/verify", signatureHandler.VerifyDigitalSignature)
 		})
 
 		// User signatures
@@ -118,21 +123,6 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 		assignees.Post("/:assigneeId/transactions", businessTripHandler.AddTransaction)
 		assignees.Get("/:id/summary", businessTripHandler.GetAssigneeSummary)
 	}
-
-	// Cryptography routes
-	api.Route("/v1/crypto", func(r fiber.Router) {
-		r.Get("/public-key", cryptoHandler.GetPublicKey) // Public key endpoint doesn't need auth
-
-		// Routes that need auth middleware
-		r.Use(middleware.AuthMiddleware())
-		r.Post("/sign", cryptoHandler.SignDocument)
-		r.Post("/verify", cryptoHandler.VerifyDocument)
-		r.Post("/verify-offline", cryptoHandler.VerifyDocumentOffline)
-		r.Post("/qrcode", cryptoHandler.GenerateQRCode)
-
-		// QR-based signature for work papers
-		r.Post("/work-paper-signatures/:signatureId/sign-with-qr", cryptoHandler.SignWorkPaperWithQR)
-	})
 
 	// Vaccine routes
 	api.Route("/v1/vaccine", func(r fiber.Router) {
