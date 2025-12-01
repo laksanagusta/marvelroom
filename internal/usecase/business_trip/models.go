@@ -47,7 +47,7 @@ func (r BusinessTripRequest) Validate() error {
 		validation.Field(&r.Status, validation.Length(0, 20)),
 		validation.Field(&r.DocumentLink, validation.Length(0, 500)),
 		validation.Field(&r.Assignees, validation.Required, validation.Length(1, 50), validation.Each()),
-	validation.Field(&r.Verificators, validation.Each()),
+		validation.Field(&r.Verificators, validation.Each()),
 	)
 	if err != nil {
 		return err
@@ -400,7 +400,7 @@ func (r UpdateBusinessTripWithAssigneesRequest) Validate() error {
 		validation.Field(&r.Status, validation.Length(0, 20)),
 		validation.Field(&r.DocumentLink, validation.Length(0, 500)),
 		validation.Field(&r.Assignees, validation.Required, validation.Length(1, 50), validation.Each()),
-	validation.Field(&r.Verificators, validation.Each()),
+		validation.Field(&r.Verificators, validation.Each()),
 	)
 	if err != nil {
 		return err
@@ -474,6 +474,11 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 	// Set the ID for update
 	bt.ID = businessTripID
 
+	// Set document link
+	if r.DocumentLink != "" {
+		bt.UpdateDocumentLink(r.DocumentLink)
+	}
+
 	// Set status if provided (must be valid status)
 	if r.Status != "" {
 		status := entity.BusinessTripStatus(r.Status)
@@ -483,11 +488,6 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 				return nil, err
 			}
 		}
-	}
-
-	// Set document link
-	if r.DocumentLink != "" {
-		bt.UpdateDocumentLink(r.DocumentLink)
 	}
 
 	// Add verificators
@@ -536,37 +536,37 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 
 // BusinessTripResponse represents the response body for a business trip
 type BusinessTripResponse struct {
-	ID                 string                 `json:"id"`
-	BusinessTripNumber string                 `json:"business_trip_number"`
-	StartDate          string                 `json:"start_date"`
-	EndDate            string                 `json:"end_date"`
-	ActivityPurpose    string                 `json:"activity_purpose"`
-	DestinationCity    string                 `json:"destination_city"`
-	SPDDate            string                 `json:"spd_date"`
-	DepartureDate      string                 `json:"departure_date"`
-	ReturnDate         string                 `json:"return_date"`
-	Status             string                 `json:"status"`
-	DocumentLink       string                 `json:"document_link"`
-	TotalCost          float64                `json:"total_cost"`
-	Verificators       []VerificatorResponse  `json:"verificators"`
-	Assignees          []AssigneeResponse     `json:"assignees"`
-	CreatedAt          string                 `json:"created_at"`
-	UpdatedAt          string                 `json:"updated_at"`
+	ID                 string                `json:"id"`
+	BusinessTripNumber string                `json:"business_trip_number"`
+	StartDate          string                `json:"start_date"`
+	EndDate            string                `json:"end_date"`
+	ActivityPurpose    string                `json:"activity_purpose"`
+	DestinationCity    string                `json:"destination_city"`
+	SPDDate            string                `json:"spd_date"`
+	DepartureDate      string                `json:"departure_date"`
+	ReturnDate         string                `json:"return_date"`
+	Status             string                `json:"status"`
+	DocumentLink       string                `json:"document_link"`
+	TotalCost          float64               `json:"total_cost"`
+	Verificators       []VerificatorResponse `json:"verificators"`
+	Assignees          []AssigneeResponse    `json:"assignees"`
+	CreatedAt          string                `json:"created_at"`
+	UpdatedAt          string                `json:"updated_at"`
 }
 
 // VerificatorResponse represents the response body for a verificator
 type VerificatorResponse struct {
-	ID               string     `json:"id"`
-	BusinessTripID   string     `json:"business_trip_id"`
-	UserID           string     `json:"user_id"`
-	UserName         string     `json:"user_name"`
-	EmployeeNumber   string     `json:"employee_number"`
-	Position         string     `json:"position"`
-	Status           string     `json:"status"`
-	VerifiedAt       *string    `json:"verified_at"`
-	VerificationNotes string     `json:"verification_notes"`
-	CreatedAt        string     `json:"created_at"`
-	UpdatedAt        string     `json:"updated_at"`
+	ID                string  `json:"id"`
+	BusinessTripID    string  `json:"business_trip_id"`
+	UserID            string  `json:"user_id"`
+	UserName          string  `json:"user_name"`
+	EmployeeNumber    string  `json:"employee_number"`
+	Position          string  `json:"position"`
+	Status            string  `json:"status"`
+	VerifiedAt        *string `json:"verified_at"`
+	VerificationNotes string  `json:"verification_notes"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
 }
 
 // AssigneeResponse represents the response body for an assignee
@@ -727,17 +727,17 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 			verifiedAt = &verified
 		}
 		verificators[i] = VerificatorResponse{
-			ID:               verificator.GetID(),
-			BusinessTripID:   verificator.GetBusinessTripID(),
-			UserID:           verificator.GetUserID(),
-			UserName:         verificator.GetUserName(),
-			EmployeeNumber:   verificator.GetEmployeeNumber(),
-			Position:         verificator.GetPosition(),
-			Status:           string(verificator.GetStatus()),
-			VerifiedAt:       verifiedAt,
+			ID:                verificator.GetID(),
+			BusinessTripID:    verificator.GetBusinessTripID(),
+			UserID:            verificator.GetUserID(),
+			UserName:          verificator.GetUserName(),
+			EmployeeNumber:    verificator.GetEmployeeNumber(),
+			Position:          verificator.GetPosition(),
+			Status:            string(verificator.GetStatus()),
+			VerifiedAt:        verifiedAt,
 			VerificationNotes: verificator.GetVerificationNotes(),
-			CreatedAt:        verificator.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:        verificator.UpdatedAt.Format(time.RFC3339),
+			CreatedAt:         verificator.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:         verificator.UpdatedAt.Format(time.RFC3339),
 		}
 	}
 

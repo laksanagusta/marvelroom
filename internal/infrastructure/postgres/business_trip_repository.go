@@ -562,6 +562,7 @@ func (r *businessTripRepository) GetAssigneesByBusinessTripID(ctx context.Contex
 	}
 	defer rows.Close()
 
+	// First, collect all assignees without transactions
 	var assignees []*entity.Assignee
 	for rows.Next() {
 		var assignee entity.Assignee
@@ -569,19 +570,23 @@ func (r *businessTripRepository) GetAssigneesByBusinessTripID(ctx context.Contex
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan assignee: %w", err)
 		}
-
-		// Get transactions for this assignee
-		transactions, err := r.GetTransactionsByAssigneeID(ctx, assignee.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get transactions for assignee %s: %w", assignee.ID, err)
-		}
-
-		assignee.Transactions = transactions
 		assignees = append(assignees, &assignee)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// Close rows before executing nested queries
+	rows.Close()
+
+	// Now fetch transactions for each assignee
+	for _, assignee := range assignees {
+		transactions, err := r.GetTransactionsByAssigneeID(ctx, assignee.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transactions for assignee %s: %w", assignee.ID, err)
+		}
+		assignee.Transactions = transactions
 	}
 
 	return assignees, nil

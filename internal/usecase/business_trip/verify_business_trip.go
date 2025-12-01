@@ -71,28 +71,21 @@ func NewVerifyBusinessTripUseCase(businessTripRepo repository.BusinessTripReposi
 	}
 }
 
-func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusinessTripRequest) (*VerifyBusinessTripResponse, error) {
+func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusinessTripRequest, authenticatedUser entity.AuthenticatedUser) (*VerifyBusinessTripResponse, error) {
 	// Validate request
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
-	// Get user ID from context (authenticated user)
-	userID, err := getUserIDFromContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("authentication error: %w", err)
-	}
-
 	var result *VerifyBusinessTripResponse
-
-	err = uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
+	err := uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
 		// Create transaction-aware repository
 		businessTripRepoWithTx := uc.businessTripRepo.(interface {
 			WithTransaction(database.DBTx) repository.BusinessTripRepository
 		}).WithTransaction(tx)
 
 		// Get verificator for this business trip and user
-		verificator, err := businessTripRepoWithTx.GetVerificatorByBusinessTripIDAndUserID(ctx, req.BusinessTripID, userID)
+		verificator, err := businessTripRepoWithTx.GetVerificatorByBusinessTripIDAndUserID(ctx, req.BusinessTripID, authenticatedUser.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get verificator: %w", err)
 		}
@@ -179,7 +172,7 @@ func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusi
 		result = &VerifyBusinessTripResponse{
 			ID:                 updatedVerificator.GetID(),
 			BusinessTripID:     updatedVerificator.GetBusinessTripID(),
-			UserID:             userID,               // Use the authenticated user ID
+			UserID:             authenticatedUser.ID, // Use the authenticated user ID
 			UserName:           verificator.UserName, // Use the name from original verificator
 			EmployeeNumber:     verificator.EmployeeNumber,
 			Position:           verificator.Position,

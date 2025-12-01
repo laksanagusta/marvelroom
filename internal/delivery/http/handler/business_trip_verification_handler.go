@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"sandbox/internal/delivery/http/middleware"
 	"sandbox/internal/usecase/business_trip"
 	"sandbox/pkg/pagination"
 
@@ -82,9 +83,11 @@ func (h *BusinessTripVerificationHandler) VerifyBusinessTrip(c *fiber.Ctx) error
 		})
 	}
 
+	authenticatedUser, _ := middleware.GetAuthenticatedUser(c)
+
 	// Execute use case
 	// The context should contain user_id from authentication middleware
-	response, err := h.verifyUseCase.Execute(c.Context(), req)
+	response, err := h.verifyUseCase.Execute(c.Context(), req, *authenticatedUser)
 	if err != nil {
 		// Handle authentication error
 		if err.Error() == "authentication error: user not authenticated or user_id not found in context" {

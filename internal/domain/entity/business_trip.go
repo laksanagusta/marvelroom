@@ -20,11 +20,11 @@ const (
 type BusinessTripStatus string
 
 const (
-	BusinessTripStatusDraft           BusinessTripStatus = "draft"
-	BusinessTripStatusReadyToVerify   BusinessTripStatus = "ready_to_verify"
-	BusinessTripStatusOngoing         BusinessTripStatus = "ongoing"
-	BusinessTripStatusCanceled        BusinessTripStatus = "canceled"
-	BusinessTripStatusCompleted       BusinessTripStatus = "completed"
+	BusinessTripStatusDraft         BusinessTripStatus = "draft"
+	BusinessTripStatusReadyToVerify BusinessTripStatus = "ready_to_verify"
+	BusinessTripStatusOngoing       BusinessTripStatus = "ongoing"
+	BusinessTripStatusCanceled      BusinessTripStatus = "canceled"
+	BusinessTripStatusCompleted     BusinessTripStatus = "completed"
 )
 
 // BusinessTrip represents a business trip entity
@@ -216,7 +216,7 @@ func (bt *BusinessTrip) AddVerificator(userID, userName, employeeNumber, positio
 	}
 
 	verificator := &Verificator{
-		ID:               uuid.New().String(),
+		ID:                uuid.New().String(),
 		BusinessTripID:    bt.ID,
 		UserID:            strings.TrimSpace(userID),
 		UserName:          strings.TrimSpace(userName),
@@ -577,17 +577,17 @@ const (
 
 // Verificator represents a user assigned to verify a business trip
 type Verificator struct {
-	ID               string           `db:"id"`
-	BusinessTripID   string           `db:"business_trip_id"`
-	UserID           string           `db:"user_id"`
-	UserName         string           `db:"user_name"`
-	EmployeeNumber   string           `db:"employee_number"`
-	Position         string           `db:"position"`
-	Status           VerificatorStatus `db:"status"`
-	VerifiedAt       *time.Time       `db:"verified_at"`
-	VerificationNotes string           `db:"verification_notes"`
-	CreatedAt        time.Time        `db:"created_at"`
-	UpdatedAt        time.Time        `db:"updated_at"`
+	ID                string            `db:"id"`
+	BusinessTripID    string            `db:"business_trip_id"`
+	UserID            string            `db:"user_id"`
+	UserName          string            `db:"user_name"`
+	EmployeeNumber    string            `db:"employee_number"`
+	Position          string            `db:"position"`
+	Status            VerificatorStatus `db:"status"`
+	VerifiedAt        *time.Time        `db:"verified_at"`
+	VerificationNotes string            `db:"verification_notes"`
+	CreatedAt         time.Time         `db:"created_at"`
+	UpdatedAt         time.Time         `db:"updated_at"`
 }
 
 // NewVerificator creates a new verificator with validation
@@ -614,7 +614,7 @@ func NewVerificator(businessTripID, userID, userName, employeeNumber, position s
 	}
 
 	return &Verificator{
-		ID:               uuid.New().String(),
+		ID:                uuid.New().String(),
 		BusinessTripID:    strings.TrimSpace(businessTripID),
 		UserID:            strings.TrimSpace(userID),
 		UserName:          strings.TrimSpace(userName),
@@ -692,38 +692,38 @@ func (v *Verificator) UpdateStatus(newStatus VerificatorStatus, notes string) er
 }
 
 // Getters
-func (v *Verificator) GetID() string                     { return v.ID }
-func (v *Verificator) GetBusinessTripID() string         { return v.BusinessTripID }
-func (v *Verificator) GetUserID() string                 { return v.UserID }
-func (v *Verificator) GetUserName() string               { return v.UserName }
-func (v *Verificator) GetEmployeeNumber() string         { return v.EmployeeNumber }
-func (v *Verificator) GetPosition() string               { return v.Position }
-func (v *Verificator) GetStatus() VerificatorStatus      { return v.Status }
-func (v *Verificator) GetVerifiedAt() *time.Time         { return v.VerifiedAt }
-func (v *Verificator) GetVerificationNotes() string      { return v.VerificationNotes }
+func (v *Verificator) GetID() string                { return v.ID }
+func (v *Verificator) GetBusinessTripID() string    { return v.BusinessTripID }
+func (v *Verificator) GetUserID() string            { return v.UserID }
+func (v *Verificator) GetUserName() string          { return v.UserName }
+func (v *Verificator) GetEmployeeNumber() string    { return v.EmployeeNumber }
+func (v *Verificator) GetPosition() string          { return v.Position }
+func (v *Verificator) GetStatus() VerificatorStatus { return v.Status }
+func (v *Verificator) GetVerifiedAt() *time.Time    { return v.VerifiedAt }
+func (v *Verificator) GetVerificationNotes() string { return v.VerificationNotes }
 
 // VerificatorWithBusinessTrip represents a verificator with joined business trip data
 type VerificatorWithBusinessTrip struct {
-	ID               string             `db:"id"`
-	BusinessTripID   string             `db:"business_trip_id"`
-	UserID           string             `db:"user_id"`
-	UserName         string             `db:"user_name"`
-	EmployeeNumber   string             `db:"employee_number"`
-	Position         string             `db:"position"`
-	Status           VerificatorStatus  `db:"status"`
-	VerifiedAt       *time.Time         `db:"verified_at"`
-	VerificationNotes string             `db:"verification_notes"`
-	CreatedAt        time.Time          `db:"created_at"`
-	UpdatedAt        time.Time          `db:"updated_at"`
+	ID                string            `db:"id"`
+	BusinessTripID    string            `db:"business_trip_id"`
+	UserID            string            `db:"user_id"`
+	UserName          string            `db:"user_name"`
+	EmployeeNumber    string            `db:"employee_number"`
+	Position          string            `db:"position"`
+	Status            VerificatorStatus `db:"status"`
+	VerifiedAt        *time.Time        `db:"verified_at"`
+	VerificationNotes string            `db:"verification_notes"`
+	CreatedAt         time.Time         `db:"created_at"`
+	UpdatedAt         time.Time         `db:"updated_at"`
 	// Business trip fields
-	BusinessTripNumber sql.NullString     `db:"business_trip_number"`
-	BusinessTripStartDate time.Time        `db:"start_date"`
-	BusinessTripEndDate   time.Time        `db:"end_date"`
-	BusinessTripActivityPurpose string     `db:"activity_purpose"`
-	BusinessTripDestinationCity   string    `db:"destination_city"`
-	BusinessTripSPDDate          time.Time  `db:"spd_date"`
-	BusinessTripDepartureDate    time.Time  `db:"departure_date"`
-	BusinessTripReturnDate       time.Time  `db:"return_date"`
-	BusinessTripStatus           BusinessTripStatus `db:"business_trip_status"`
-	BusinessTripDocumentLink     sql.NullString     `db:"document_link"`
+	BusinessTripNumber          sql.NullString     `db:"business_trip_number"`
+	BusinessTripStartDate       time.Time          `db:"start_date"`
+	BusinessTripEndDate         time.Time          `db:"end_date"`
+	BusinessTripActivityPurpose string             `db:"activity_purpose"`
+	BusinessTripDestinationCity string             `db:"destination_city"`
+	BusinessTripSPDDate         time.Time          `db:"spd_date"`
+	BusinessTripDepartureDate   time.Time          `db:"departure_date"`
+	BusinessTripReturnDate      time.Time          `db:"return_date"`
+	BusinessTripStatus          BusinessTripStatus `db:"business_trip_status"`
+	BusinessTripDocumentLink    sql.NullString     `db:"document_link"`
 }
