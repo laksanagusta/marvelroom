@@ -203,7 +203,7 @@ Tugas Anda:
 Jawab dengan format JSON berikut:
 {
   "isValid": true/false,
-  "note": "Penjelasan detail tentang temuan, rekomendasi, atau alasan penilaian"
+  "note": "Penjelasan tentang temuan, rekomendasi, atau alasan penilaian (maksimal 5-6 kalimat)"
 }
 
 Kriteria penilaian:

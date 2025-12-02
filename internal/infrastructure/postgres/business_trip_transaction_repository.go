@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -58,8 +59,8 @@ const (
 
 	getTypeStatsQuery = `
 		SELECT
-			at.type,
-			COUNT(*) as count,
+			at.type as transaction_type,
+			COUNT(*) as average_amount,
 			COALESCE(SUM(at.subtotal), 0) as total_amount
 		FROM assignee_transactions at
 		INNER JOIN assignees a ON at.assignee_id = a.id
@@ -303,6 +304,7 @@ func (r *businessTripTransactionRepository) GetTypeStats(ctx context.Context, st
 		var stat repository.TransactionTypeData
 		err := rows.StructScan(&stat)
 		if err != nil {
+			log.Println("sdajda")
 			return nil, fmt.Errorf("failed to scan transaction type stat: %w", err)
 		}
 		stats = append(stats, &stat)

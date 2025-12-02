@@ -1080,7 +1080,7 @@ func (r *businessTripRepository) GetTotalCount(ctx context.Context, startDate, e
 func (r *businessTripRepository) GetTypeStats(ctx context.Context, startDate, endDate *time.Time) ([]*repository.TransactionTypeData, error) {
 	query := `
 		SELECT
-			t.type,
+			t.type as transaction_type,
 			COUNT(*) as total_transactions,
 			COALESCE(SUM(t.subtotal), 0) as total_amount,
 			COALESCE(AVG(t.subtotal), 0) as average_amount
@@ -1117,13 +1117,7 @@ func (r *businessTripRepository) GetTypeStats(ctx context.Context, startDate, en
 	var stats []*repository.TransactionTypeData
 	for rows.Next() {
 		var stat repository.TransactionTypeData
-		err := rows.Scan(
-			&stat.TransactionType,
-			&stat.TotalTransactions,
-			&stat.TotalAmount,
-			&stat.AverageAmount,
-		)
-		if err != nil {
+		if err := rows.StructScan(&stat); err != nil {
 			return nil, fmt.Errorf("failed to scan transaction type stat: %w", err)
 		}
 		stats = append(stats, &stat)

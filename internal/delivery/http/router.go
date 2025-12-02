@@ -67,6 +67,7 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 			r.Put("/:id/status", workPaperHandler.UpdateWorkPaperStatus)
 			r.Put("/:id/signers", workPaperHandler.ManageSigners)
 			r.Post("/:id/assign-signers", workPaperHandler.AssignSignersBulk)
+			r.Get("/:id/docx", workPaperHandler.GenerateDocx)
 			r.Get("/:workPaperId/signatures", signatureHandler.GetWorkPaperSignaturesByWorkPaperID)
 		})
 

@@ -2,6 +2,7 @@ package desk
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -19,6 +20,7 @@ type WorkPaperHandler struct {
 	updateStatusUseCase     *work_paper.UpdateWorkPaperStatusUseCase
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase
 	manageSignersUseCase    *work_paper.ManageSignersUseCase
+	generateDocxUseCase     *work_paper.GenerateWorkPaperDocxUseCase
 	validator               *validator.Validate
 }
 
@@ -31,6 +33,7 @@ func NewWorkPaperHandler(
 	updateStatusUseCase *work_paper.UpdateWorkPaperStatusUseCase,
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase,
 	manageSignersUseCase *work_paper.ManageSignersUseCase,
+	generateDocxUseCase *work_paper.GenerateWorkPaperDocxUseCase,
 ) *WorkPaperHandler {
 	return &WorkPaperHandler{
 		createUseCase:           createUseCase,
@@ -40,6 +43,7 @@ func NewWorkPaperHandler(
 		updateStatusUseCase:     updateStatusUseCase,
 		updateWorkPaperNoteCase: updateWorkPaperNoteCase,
 		manageSignersUseCase:    manageSignersUseCase,
+		generateDocxUseCase:     generateDocxUseCase,
 		validator:               validator.New(),
 	}
 }
@@ -567,5 +571,37 @@ func NewPaperWorkHandler(
 	createUseCase *work_paper.CreateWorkPaperUseCase,
 	checkDocumentUseCase *work_paper.CheckWorkPaperNoteUseCase,
 ) *WorkPaperHandler {
-	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil, nil)
+	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil, nil, nil)
+}
+
+// GenerateDocx generates a DOCX document for the work paper
+// @Summary Generate Work Paper DOCX
+// @Description Generates a DOCX document containing work paper notes and signatures
+// @Tags desk
+// @Produce application/vnd.openxmlformats-officedocument.wordprocessingml.document
+// @Param id path string true "Work Paper ID"
+// @Success 200 {file} []byte
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-papers/{id}/docx [get]
+func (h *WorkPaperHandler) GenerateDocx(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Work Paper ID is required",
+		})
+	}
+
+	ctx := context.Background()
+	data, err := h.generateDocxUseCase.Execute(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to generate DOCX",
+			"details": err.Error(),
+		})
+	}
+
+	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=work_paper_%s.docx", id))
+	return c.Send(data)
 }

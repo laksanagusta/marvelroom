@@ -32,17 +32,17 @@ import (
 // Container holds all application dependencies
 type Container struct {
 	// Handlers
-	TransactionHandler             *handler.TransactionHandler
-	MeetingHandler                 *handler.MeetingHandler
-	BusinessTripHandler            *handler.BusinessTripHandler
-	AssigneeHandler                *handler.AssigneeHandler
-	BusinessTripTransactionHandler *handler.BusinessTripTransactionHandler
-	BusinessTripDashboardHandler   *handler.BusinessTripDashboardHandler
+	TransactionHandler              *handler.TransactionHandler
+	MeetingHandler                  *handler.MeetingHandler
+	BusinessTripHandler             *handler.BusinessTripHandler
+	AssigneeHandler                 *handler.AssigneeHandler
+	BusinessTripTransactionHandler  *handler.BusinessTripTransactionHandler
+	BusinessTripDashboardHandler    *handler.BusinessTripDashboardHandler
 	BusinessTripVerificationHandler *handler.BusinessTripVerificationHandler
-	WorkPaperItemHandler           *deskHandler.WorkPaperItemHandler
-	WorkPaperHandler               *deskHandler.WorkPaperHandler
-	WorkPaperSignatureHandler      *handler.WorkPaperSignatureHandler
-	VaccineHandler                 *handler.VaccineHandler
+	WorkPaperItemHandler            *deskHandler.WorkPaperItemHandler
+	WorkPaperHandler                *deskHandler.WorkPaperHandler
+	WorkPaperSignatureHandler       *handler.WorkPaperSignatureHandler
+	VaccineHandler                  *handler.VaccineHandler
 
 	// Backward compatibility aliases (deprecated)
 	MasterLakipItemHandler *deskHandler.WorkPaperItemHandler
@@ -68,7 +68,7 @@ type Container struct {
 	GetAssigneeSummaryUseCase              *businessTripUC.GetAssigneeSummaryUseCase
 	GetDashboardUseCase                    *businessTripUC.GetDashboardUseCase
 	VerifyBusinessTripUseCase              *businessTripUC.VerifyBusinessTripUseCase
-	ListVerificatorsUseCase               *businessTripUC.ListVerificatorsUseCase
+	ListVerificatorsUseCase                *businessTripUC.ListVerificatorsUseCase
 
 	// Assignee Use Cases
 	GetAssigneeUseCase    *businessTripUC.GetAssigneeUseCase
@@ -104,17 +104,17 @@ type Container struct {
 	CheckDocumentUseCase         *workPaperUC.CheckWorkPaperNoteUseCase
 
 	// Repositories
-	GeminiClient                 *gemini.Client
-	IdentityService              infrastructure.IdentityServiceInterface
-	MeetingRepo                  repository.MeetingRepository
-	BusinessTripRepo             repository.BusinessTripRepository
+	GeminiClient                *gemini.Client
+	IdentityService             infrastructure.IdentityServiceInterface
+	MeetingRepo                 repository.MeetingRepository
+	BusinessTripRepo            repository.BusinessTripRepository
 	AssigneeRepo                repository.AssigneeRepository
-	BusinessTripTransactionRepo  repository.BusinessTripTransactionRepository
-	WorkPaperItemRepo            repository.WorkPaperItemRepository
-	OrganizationRepo             repository.OrganizationRepository
-	WorkPaperRepo                repository.WorkPaperRepository
-	WorkPaperNoteRepo            repository.WorkPaperNoteRepository
-	WorkPaperSignatureRepo       repository.WorkPaperSignatureRepository
+	BusinessTripTransactionRepo repository.BusinessTripTransactionRepository
+	WorkPaperItemRepo           repository.WorkPaperItemRepository
+	OrganizationRepo            repository.OrganizationRepository
+	WorkPaperRepo               repository.WorkPaperRepository
+	WorkPaperNoteRepo           repository.WorkPaperNoteRepository
+	WorkPaperSignatureRepo      repository.WorkPaperSignatureRepository
 
 	// Backward compatibility aliases (deprecated)
 	MasterLakipItemRepo repository.MasterLakipItemRepository
@@ -310,6 +310,7 @@ func NewContainer(cfg *Config) *Container {
 	updateWorkPaperNoteUseCase := workPaperUC.NewUpdateWorkPaperNoteUseCase(deskService)
 	getWorkPaperDetailsUseCase := workPaperUC.NewGetWorkPaperDetailsUseCase(deskService)
 	manageSignersUseCase := workPaperUC.NewManageSignersUseCase(deskService)
+	generateWorkPaperDocxUseCase := workPaperUC.NewGenerateWorkPaperDocxUseCase(deskService)
 
 	// Backward compatibility aliases
 	createMasterLakipItemUseCase := workPaperItemUC.NewCreateMasterLakipItemUseCase(deskService)
@@ -342,6 +343,7 @@ func NewContainer(cfg *Config) *Container {
 		updateWorkPaperStatusUseCase,
 		updateWorkPaperNoteUseCase,
 		manageSignersUseCase,
+		generateWorkPaperDocxUseCase,
 	)
 
 	// Work Paper Signature Handler
@@ -368,40 +370,40 @@ func NewContainer(cfg *Config) *Container {
 	)
 
 	return &Container{
-		TransactionHandler:             transactionHandler,
-		MeetingHandler:                 meetingHandler,
-		BusinessTripHandler:            businessTripHandler,
-		AssigneeHandler:                assigneeHandler,
-		BusinessTripTransactionHandler: businessTripTransactionHandler,
-		BusinessTripDashboardHandler:   businessTripDashboardHandler,
+		TransactionHandler:              transactionHandler,
+		MeetingHandler:                  meetingHandler,
+		BusinessTripHandler:             businessTripHandler,
+		AssigneeHandler:                 assigneeHandler,
+		BusinessTripTransactionHandler:  businessTripTransactionHandler,
+		BusinessTripDashboardHandler:    businessTripDashboardHandler,
 		BusinessTripVerificationHandler: businessTripVerificationHandler,
-		WorkPaperItemHandler:           workPaperItemHandler,
-		WorkPaperHandler:               workPaperHandler,
-		WorkPaperSignatureHandler:      workPaperSignatureHandler,
-		VaccineHandler:                 vaccineHandler,
-		ExtractTransactionsUseCase:     extractTransactionsUseCase,
-		GenerateRecapExcelUseCase:      generateRecapExcelUseCase,
-		CreateMeetingUseCase:           createMeetingUseCase,
-		CreateBusinessTripUseCase:      createBusinessTripUseCase,
-		GetBusinessTripUseCase:         getBusinessTripUseCase,
-		UpdateBusinessTripUseCase:      updateBusinessTripUseCase,
-		DeleteBusinessTripUseCase:      deleteBusinessTripUseCase,
-		ListBusinessTripsUseCase:       listBusinessTripsUseCase,
-		AddAssigneeUseCase:             addAssigneeUseCase,
-		AddTransactionUseCase:          addTransactionUseCase,
-		GetBusinessTripSummaryUseCase:  getBusinessTripSummaryUseCase,
-		GetAssigneeSummaryUseCase:      getAssigneeSummaryUseCase,
-		GetDashboardUseCase:           getDashboardUseCase,
-		VerifyBusinessTripUseCase:     verifyBusinessTripUseCase,
-		ListVerificatorsUseCase:      listVerificatorsUseCase,
-		GetAssigneeUseCase:             getAssigneeUseCase,
-		UpdateAssigneeUseCase:          updateAssigneeUseCase,
-		DeleteAssigneeUseCase:          deleteAssigneeUseCase,
-		ListAssigneesUseCase:           listAssigneesUseCase,
-		GetTransactionUseCase:          getTransactionUseCase,
-		UpdateTransactionUseCase:       updateTransactionUseCase,
-		DeleteTransactionUseCase:       deleteTransactionUseCase,
-		ListTransactionsUseCase:        listTransactionsUseCase,
+		WorkPaperItemHandler:            workPaperItemHandler,
+		WorkPaperHandler:                workPaperHandler,
+		WorkPaperSignatureHandler:       workPaperSignatureHandler,
+		VaccineHandler:                  vaccineHandler,
+		ExtractTransactionsUseCase:      extractTransactionsUseCase,
+		GenerateRecapExcelUseCase:       generateRecapExcelUseCase,
+		CreateMeetingUseCase:            createMeetingUseCase,
+		CreateBusinessTripUseCase:       createBusinessTripUseCase,
+		GetBusinessTripUseCase:          getBusinessTripUseCase,
+		UpdateBusinessTripUseCase:       updateBusinessTripUseCase,
+		DeleteBusinessTripUseCase:       deleteBusinessTripUseCase,
+		ListBusinessTripsUseCase:        listBusinessTripsUseCase,
+		AddAssigneeUseCase:              addAssigneeUseCase,
+		AddTransactionUseCase:           addTransactionUseCase,
+		GetBusinessTripSummaryUseCase:   getBusinessTripSummaryUseCase,
+		GetAssigneeSummaryUseCase:       getAssigneeSummaryUseCase,
+		GetDashboardUseCase:             getDashboardUseCase,
+		VerifyBusinessTripUseCase:       verifyBusinessTripUseCase,
+		ListVerificatorsUseCase:         listVerificatorsUseCase,
+		GetAssigneeUseCase:              getAssigneeUseCase,
+		UpdateAssigneeUseCase:           updateAssigneeUseCase,
+		DeleteAssigneeUseCase:           deleteAssigneeUseCase,
+		ListAssigneesUseCase:            listAssigneesUseCase,
+		GetTransactionUseCase:           getTransactionUseCase,
+		UpdateTransactionUseCase:        updateTransactionUseCase,
+		DeleteTransactionUseCase:        deleteTransactionUseCase,
+		ListTransactionsUseCase:         listTransactionsUseCase,
 
 		// Desk Module Use Cases
 		CreateWorkPaperItemUseCase: createWorkPaperItemUseCase,
@@ -428,7 +430,7 @@ func NewContainer(cfg *Config) *Container {
 		IdentityService:             identityService,
 		MeetingRepo:                 meetingRepo,
 		BusinessTripRepo:            businessTripRepo,
-		AssigneeRepo:               assigneeRepo,
+		AssigneeRepo:                assigneeRepo,
 		BusinessTripTransactionRepo: transactionRepo,
 		WorkPaperItemRepo:           workPaperItemRepo,
 		OrganizationRepo:            organizationRepo,
