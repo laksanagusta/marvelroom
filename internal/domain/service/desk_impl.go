@@ -341,6 +341,17 @@ func (s *deskService) GetWorkPaper(ctx context.Context, id string) (*entity.Work
 		return nil, fmt.Errorf("failed to get work paper: %w", err)
 	}
 
+	// Fetch organization data
+	if workPaper != nil {
+		org, err := s.organizationRepo.GetByID(ctx, workPaper.OrganizationID.String())
+		if err != nil {
+			// Log error but don't fail the request
+			log.Printf("Failed to fetch organization %s: %v", workPaper.OrganizationID.String(), err)
+		} else {
+			workPaper.Organization = org
+		}
+	}
+
 	return workPaper, nil
 }
 
@@ -397,7 +408,18 @@ func (s *deskService) ListWorkPapers(ctx context.Context, req *ListWorkPapersReq
 			}
 			filteredWorkPapers = append(filteredWorkPapers, workPaper)
 		}
-		return filteredWorkPapers, int64(len(filteredWorkPapers)), nil
+		workPapers = filteredWorkPapers
+		total = int64(len(filteredWorkPapers))
+	}
+
+	// Fetch organization data for each work paper
+	for _, workPaper := range workPapers {
+		if org, err := s.organizationRepo.GetByID(ctx, workPaper.OrganizationID.String()); err == nil {
+			workPaper.Organization = org
+		} else {
+			// Log error but don't fail the request
+			log.Printf("Failed to fetch organization %s: %v", workPaper.OrganizationID.String(), err)
+		}
 	}
 
 	return workPapers, total, nil

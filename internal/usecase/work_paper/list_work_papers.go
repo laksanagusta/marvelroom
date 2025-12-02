@@ -45,13 +45,14 @@ type Metadata struct {
 
 // WorkPaperResponse represents a single work paper in the response
 type WorkPaperResponse struct {
-	ID             string `json:"id"`
-	OrganizationID string `json:"organization_id"`
-	Year           int    `json:"year"`
-	Semester       int    `json:"semester"`
-	Status         string `json:"status"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID             string                `json:"id"`
+	OrganizationID string                `json:"organization_id"`
+	Organization   *OrganizationResponse `json:"organization,omitempty"`
+	Year           int                   `json:"year"`
+	Semester       int                   `json:"semester"`
+	Status         string                `json:"status"`
+	CreatedAt      string                `json:"created_at"`
+	UpdatedAt      string                `json:"updated_at"`
 }
 
 // Execute executes the use case
@@ -82,6 +83,17 @@ func (uc *ListWorkPapersUseCase) Execute(ctx context.Context, req ListRequest) (
 			CreatedAt:      workPaper.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:      workPaper.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
+
+		// Add organization data if available
+		if workPaper.Organization != nil {
+			response.Organization = &OrganizationResponse{
+				ID:      workPaper.Organization.ID.String(),
+				Name:    workPaper.Organization.Name,
+				Address: workPaper.Organization.Address,
+				Type:    workPaper.Organization.Type,
+			}
+		}
+
 		responses = append(responses, response)
 	}
 

@@ -20,13 +20,14 @@ func NewGetWorkPaperDetailsUseCase(deskService service.DeskService) *GetWorkPape
 
 // GetWorkPaperDetailsResponse represents the detailed response with all related data
 type GetWorkPaperDetailsResponse struct {
-	ID             string `json:"id"`
-	OrganizationID string `json:"organization_id"`
-	Year           int    `json:"year"`
-	Semester       int    `json:"semester"`
-	Status         string `json:"status"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID             string                `json:"id"`
+	OrganizationID string                `json:"organization_id"`
+	Organization   *OrganizationResponse `json:"organization,omitempty"`
+	Year           int                   `json:"year"`
+	Semester       int                   `json:"semester"`
+	Status         string                `json:"status"`
+	CreatedAt      string                `json:"created_at"`
+	UpdatedAt      string                `json:"updated_at"`
 	// Include related data
 	WorkPaperNotes []*WorkPaperNoteResponse      `json:"work_paper_notes,omitempty"`
 	Signatures     []*WorkPaperSignatureResponse `json:"signatures,omitempty"`
@@ -146,6 +147,16 @@ func (uc *GetWorkPaperDetailsUseCase) Execute(ctx context.Context, workPaperID s
 		UpdatedAt:      workPaper.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		WorkPaperNotes: noteResponses,
 		Signatures:     signatureResponses,
+	}
+
+	// Add organization data if available
+	if workPaper.Organization != nil {
+		response.Organization = &OrganizationResponse{
+			ID:      workPaper.Organization.ID.String(),
+			Name:    workPaper.Organization.Name,
+			Address: workPaper.Organization.Address,
+			Type:    workPaper.Organization.Type,
+		}
 	}
 
 	return response, nil
