@@ -30,6 +30,7 @@ const (
 // BusinessTrip represents a business trip entity
 type BusinessTrip struct {
 	ID                 string             `db:"id"`
+	OrganizationID     uuid.UUID          `db:"organization_id"`
 	BusinessTripNumber sql.NullString     `db:"business_trip_number"`
 	StartDate          time.Time          `db:"start_date"`
 	EndDate            time.Time          `db:"end_date"`
@@ -96,13 +97,18 @@ type Transaction struct {
 	Subtotal        float64            `db:"subtotal"`
 	Description     string             `db:"description"`
 	TransportDetail string             `db:"transport_detail"`
+	IsValid         bool               `db:"is_valid"` // Indicates document authenticity validation
 	CreatedAt       time.Time          `db:"created_at"`
 	UpdatedAt       time.Time          `db:"updated_at"`
 }
 
 // NewBusinessTrip creates a new business trip with validation
-func NewBusinessTrip(startDate, endDate, spdDate, departureDate, returnDate time.Time, activityPurpose, destinationCity string) (*BusinessTrip, error) {
+func NewBusinessTrip(organizationID uuid.UUID, startDate, endDate, spdDate, departureDate, returnDate time.Time, activityPurpose, destinationCity string) (*BusinessTrip, error) {
 	// Validation
+	if organizationID == uuid.Nil {
+		return nil, errors.New("organization ID is required")
+	}
+
 	if startDate.After(endDate) {
 		return nil, errors.New("start date must be before or equal to end date")
 	}
@@ -125,6 +131,7 @@ func NewBusinessTrip(startDate, endDate, spdDate, departureDate, returnDate time
 
 	return &BusinessTrip{
 		ID:                 uuid.NewString(),
+		OrganizationID:     organizationID,
 		BusinessTripNumber: sql.NullString{},
 		StartDate:          startDate,
 		EndDate:            endDate,
@@ -320,7 +327,7 @@ func (bt *BusinessTrip) GetRejectedVerificatorsCount() int {
 }
 
 // NewTransaction creates a new transaction with validation
-func NewTransaction(name string, txType TransactionType, subtype TransactionSubtype, amount, subtotal float64, totalNight *int, description, transportDetail string) (*Transaction, error) {
+func NewTransaction(name string, txType TransactionType, subtype TransactionSubtype, amount, subtotal float64, totalNight *int, description, transportDetail string, isValid bool) (*Transaction, error) {
 	// Validation
 	if strings.TrimSpace(name) == "" {
 		return nil, errors.New("transaction name is required")
@@ -358,6 +365,7 @@ func NewTransaction(name string, txType TransactionType, subtype TransactionSubt
 		Subtotal:        subtotal,
 		Description:     strings.TrimSpace(description),
 		TransportDetail: strings.TrimSpace(transportDetail),
+		IsValid:         isValid,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
@@ -565,6 +573,7 @@ func (t *Transaction) GetTotalNight() *int            { return t.TotalNight }
 func (t *Transaction) GetSubtotal() float64           { return t.Subtotal }
 func (t *Transaction) GetDescription() string         { return t.Description }
 func (t *Transaction) GetTransportDetail() string     { return t.TransportDetail }
+func (t *Transaction) GetIsValid() bool               { return t.IsValid }
 
 // VerificatorStatus represents verification status
 type VerificatorStatus string

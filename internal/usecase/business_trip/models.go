@@ -6,6 +6,7 @@ import (
 	"sandbox/internal/domain/entity"
 	"sandbox/pkg/nullable"
 
+	"github.com/google/uuid"
 	"github.com/invopop/validation"
 )
 
@@ -94,7 +95,7 @@ func (r BusinessTripRequest) Validate() error {
 	return nil
 }
 
-func (r BusinessTripRequest) ToEntity() (*entity.BusinessTrip, error) {
+func (r BusinessTripRequest) ToEntity(organizationID uuid.UUID) (*entity.BusinessTrip, error) {
 	startDate, err := time.Parse("2006-01-02", r.StartDate)
 	if err != nil {
 		return nil, err
@@ -120,7 +121,7 @@ func (r BusinessTripRequest) ToEntity() (*entity.BusinessTrip, error) {
 		return nil, err
 	}
 
-	bt, err := entity.NewBusinessTrip(startDate, endDate, spdDate, departureDate, returnDate, r.ActivityPurpose, r.DestinationCity)
+	bt, err := entity.NewBusinessTrip(organizationID, startDate, endDate, spdDate, departureDate, returnDate, r.ActivityPurpose, r.DestinationCity)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +162,12 @@ func (r BusinessTripRequest) ToEntity() (*entity.BusinessTrip, error) {
 			txType := entity.TransactionType(transactionReq.Type)
 			subtype := entity.TransactionSubtype(transactionReq.Subtype)
 
+			// Default is_valid to true if not provided
+			isValid := true
+			if transactionReq.IsValid != nil {
+				isValid = *transactionReq.IsValid
+			}
+
 			transaction, err := entity.NewTransaction(
 				transactionReq.Name,
 				txType,
@@ -170,6 +177,7 @@ func (r BusinessTripRequest) ToEntity() (*entity.BusinessTrip, error) {
 				transactionReq.TotalNight,
 				transactionReq.Description,
 				transactionReq.TransportDetail,
+				isValid,
 			)
 			if err != nil {
 				return nil, err
@@ -229,6 +237,7 @@ type TransactionRequest struct {
 	TotalNight      *int    `json:"total_night"`
 	Description     string  `json:"description"`
 	TransportDetail string  `json:"transport_detail"`
+	IsValid         *bool   `json:"is_valid,omitempty"`
 }
 
 // VerificatorRequest represents the request body for a verificator
@@ -440,7 +449,7 @@ func (r UpdateBusinessTripWithAssigneesRequest) Validate() error {
 	return nil
 }
 
-func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) (*entity.BusinessTrip, error) {
+func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string, organizationID uuid.UUID) (*entity.BusinessTrip, error) {
 	startDate, err := time.Parse("2006-01-02", r.StartDate)
 	if err != nil {
 		return nil, err
@@ -466,7 +475,7 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 		return nil, err
 	}
 
-	bt, err := entity.NewBusinessTrip(startDate, endDate, spdDate, departureDate, returnDate, r.ActivityPurpose, r.DestinationCity)
+	bt, err := entity.NewBusinessTrip(organizationID, startDate, endDate, spdDate, departureDate, returnDate, r.ActivityPurpose, r.DestinationCity)
 	if err != nil {
 		return nil, err
 	}
@@ -510,6 +519,12 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 			txType := entity.TransactionType(transactionReq.Type)
 			subtype := entity.TransactionSubtype(transactionReq.Subtype)
 
+			// Default is_valid to true if not provided
+			isValid := true
+			if transactionReq.IsValid != nil {
+				isValid = *transactionReq.IsValid
+			}
+
 			transaction, err := entity.NewTransaction(
 				transactionReq.Name,
 				txType,
@@ -519,6 +534,7 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string) 
 				transactionReq.TotalNight,
 				transactionReq.Description,
 				transactionReq.TransportDetail,
+				isValid,
 			)
 			if err != nil {
 				return nil, err
@@ -596,6 +612,7 @@ type TransactionResponse struct {
 	Subtotal        float64 `json:"subtotal"`
 	Description     string  `json:"description,omitempty"`
 	TransportDetail string  `json:"transport_detail,omitempty"`
+	IsValid         bool    `json:"is_valid"`
 	CreatedAt       string  `json:"created_at"`
 	UpdatedAt       string  `json:"updated_at"`
 }
@@ -697,6 +714,7 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 				Subtotal:        tx.GetSubtotal(),
 				Description:     tx.GetDescription(),
 				TransportDetail: tx.GetTransportDetail(),
+				IsValid:         tx.GetIsValid(),
 				CreatedAt:       tx.CreatedAt.Format(time.RFC3339),
 				UpdatedAt:       tx.UpdatedAt.Format(time.RFC3339),
 			}
@@ -796,4 +814,17 @@ type AssigneeSummary struct {
 	TotalCost         float64            `json:"total_cost"`
 	TotalTransactions int                `json:"total_transactions"`
 	CostByType        map[string]float64 `json:"cost_by_type"`
+}
+
+// BusinessTripHistoryResponse represents a history record in the response
+type BusinessTripHistoryResponse struct {
+	ID             string    `json:"id"`
+	BusinessTripID string    `json:"business_trip_id"`
+	ChangeType     string    `json:"change_type"`
+	FieldName      string    `json:"field_name,omitempty"`
+	OldValue       string    `json:"old_value,omitempty"`
+	NewValue       string    `json:"new_value,omitempty"`
+	ChangedBy      string    `json:"changed_by,omitempty"`
+	Notes          string    `json:"notes,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
 }

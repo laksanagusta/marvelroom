@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 
-	"sandbox/internal/delivery/http/middleware"
+	"sandbox/internal/domain/entity"
 	"sandbox/internal/usecase/business_trip"
 	"sandbox/pkg/pagination"
 
@@ -21,6 +21,7 @@ type BusinessTripHandler struct {
 	addTransactionUseCase                  *business_trip.AddTransactionUseCase
 	getBusinessTripSummaryUseCase          *business_trip.GetBusinessTripSummaryUseCase
 	getAssigneeSummaryUseCase              *business_trip.GetAssigneeSummaryUseCase
+	getHistoriesUseCase                    *business_trip.GetHistoriesUseCase
 }
 
 func NewBusinessTripHandler(
@@ -34,6 +35,7 @@ func NewBusinessTripHandler(
 	addTransactionUseCase *business_trip.AddTransactionUseCase,
 	getBusinessTripSummaryUseCase *business_trip.GetBusinessTripSummaryUseCase,
 	getAssigneeSummaryUseCase *business_trip.GetAssigneeSummaryUseCase,
+	getHistoriesUseCase *business_trip.GetHistoriesUseCase,
 ) *BusinessTripHandler {
 	return &BusinessTripHandler{
 		createBusinessTripUseCase:              createBusinessTripUseCase,
@@ -46,28 +48,12 @@ func NewBusinessTripHandler(
 		addTransactionUseCase:                  addTransactionUseCase,
 		getBusinessTripSummaryUseCase:          getBusinessTripSummaryUseCase,
 		getAssigneeSummaryUseCase:              getAssigneeSummaryUseCase,
+		getHistoriesUseCase:                    getHistoriesUseCase,
 	}
 }
 
 // CreateBusinessTrip creates a new business trip
 func (h *BusinessTripHandler) CreateBusinessTrip(c *fiber.Ctx) error {
-	// Get authenticated user from context
-	user, err := middleware.GetAuthenticatedUser(c)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error":   "Authentication required",
-			"details": err.Error(),
-		})
-	}
-
-	// Example: Use the authenticated user data
-	_ = user // User data can be used for authorization or logging
-	_ = user.ID
-	_ = user.Username
-	_ = user.GetFullName()
-	_ = user.GetPrimaryRole()
-	_ = user.Organization.Name
-
 	var req business_trip.BusinessTripRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -85,8 +71,10 @@ func (h *BusinessTripHandler) CreateBusinessTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	user := c.Locals("user").(*entity.AuthenticatedUser)
+
 	// Call usecase directly
-	response, err := h.createBusinessTripUseCase.Execute(context.Background(), req)
+	response, err := h.createBusinessTripUseCase.Execute(context.Background(), req, *user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to create business trip",
@@ -210,8 +198,10 @@ func (h *BusinessTripHandler) UpdateBusinessTripWithAssignees(c *fiber.Ctx) erro
 		})
 	}
 
+	user := c.Locals("user").(*entity.AuthenticatedUser)
+
 	// Call usecase directly
-	_, err := h.updateBusinessTripWithAssigneesUseCase.Execute(context.Background(), req)
+	_, err := h.updateBusinessTripWithAssigneesUseCase.Execute(context.Background(), req, *user)
 	if err != nil {
 		if err != nil && (err.Error() == "business trip not found" || err.Error() == "entity.ErrBusinessTripNotFound") {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -437,5 +427,28 @@ func (h *BusinessTripHandler) GetAssigneeSummary(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Assignee summary retrieved successfully",
 		"data":    summary,
+	})
+}
+
+// GetBusinessTripHistories retrieves all history records for a business trip
+func (h *BusinessTripHandler) GetBusinessTripHistories(c *fiber.Ctx) error {
+	tripID := c.Params("tripId")
+	if tripID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Business trip ID is required",
+		})
+	}
+
+	histories, err := h.getHistoriesUseCase.Execute(context.Background(), tripID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to get business trip histories",
+			"details": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Business trip histories retrieved successfully",
+		"data":    histories,
 	})
 }

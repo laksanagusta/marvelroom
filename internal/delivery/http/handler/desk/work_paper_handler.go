@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 
+	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/service"
 	"sandbox/internal/usecase/work_paper"
 )
@@ -76,9 +77,11 @@ func (h *WorkPaperHandler) CreateWorkPaper(c *fiber.Ctx) error {
 		})
 	}
 
+	user := c.Locals("user").(*entity.AuthenticatedUser)
+
 	// Execute use case
 	ctx := context.Background()
-	response, err := h.createUseCase.Execute(ctx, req)
+	response, err := h.createUseCase.Execute(ctx, req, *user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to create work paper",

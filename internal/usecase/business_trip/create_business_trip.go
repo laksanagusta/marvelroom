@@ -3,6 +3,7 @@ package business_trip
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -16,19 +17,28 @@ type CreateBusinessTripUseCase struct {
 	transactionRepo  repository.BusinessTripTransactionRepository
 	userService      *service.UserService
 	db               database.DB
+	historyUseCase   *RecordHistoryUseCase
 }
 
-func NewCreateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository, transactionRepo repository.BusinessTripTransactionRepository, userService *service.UserService, db database.DB) *CreateBusinessTripUseCase {
+func NewCreateBusinessTripUseCase(
+	businessTripRepo repository.BusinessTripRepository,
+	assigneeRepo repository.AssigneeRepository,
+	transactionRepo repository.BusinessTripTransactionRepository,
+	userService *service.UserService,
+	db database.DB,
+	historyUseCase *RecordHistoryUseCase,
+) *CreateBusinessTripUseCase {
 	return &CreateBusinessTripUseCase{
 		businessTripRepo: businessTripRepo,
 		assigneeRepo:     assigneeRepo,
 		transactionRepo:  transactionRepo,
 		userService:      userService,
 		db:               db,
+		historyUseCase:   historyUseCase,
 	}
 }
 
-func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTripRequest) (*BusinessTripResponse, error) {
+func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTripRequest, authenticatedUser entity.AuthenticatedUser) (*BusinessTripResponse, error) {
 	// Extract employee numbers from request to fetch user data
 	var employeeNumbers []string
 	for _, assigneeReq := range req.Assignees {
@@ -43,7 +53,7 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)
 	}
 
-	bt, err := req.ToEntity()
+	bt, err := req.ToEntity(authenticatedUser.Organization.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +77,21 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		businessTrip, err := businessTripRepoWithTx.Create(ctx, bt)
 		if err != nil {
 			return err
+		}
+
+		// Record initial status in history
+		if uc.historyUseCase != nil {
+			log.Println("recording initial status in create_business_trip")
+			err = uc.historyUseCase.Execute(ctx, RecordHistoryInput{
+				BusinessTripID: businessTrip.ID,
+				ChangeType:     entity.HistoryChangeTypeStatusChange,
+				FieldName:      "status",
+				OldValue:       "",
+				NewValue:       string(businessTrip.Status),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to record history: %w", err)
+			}
 		}
 
 		// Process assignees with external API data

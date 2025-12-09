@@ -52,6 +52,7 @@ type VerifyBusinessTripResponse struct {
 type VerifyBusinessTripUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
 	db               database.DB
+	historyUseCase   *RecordHistoryUseCase
 }
 
 // getUserIDFromContext extracts user ID from context
@@ -64,10 +65,16 @@ func getUserIDFromContext(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
-func NewVerifyBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository, userService interface{}, db database.DB) *VerifyBusinessTripUseCase {
+func NewVerifyBusinessTripUseCase(
+	businessTripRepo repository.BusinessTripRepository,
+	userService interface{},
+	db database.DB,
+	historyUseCase *RecordHistoryUseCase,
+) *VerifyBusinessTripUseCase {
 	return &VerifyBusinessTripUseCase{
 		businessTripRepo: businessTripRepo,
 		db:               db,
+		historyUseCase:   historyUseCase,
 	}
 }
 
@@ -116,6 +123,28 @@ func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusi
 		updatedVerificator, err := businessTripRepoWithTx.UpdateVerificator(ctx, verificator)
 		if err != nil {
 			return fmt.Errorf("failed to update verificator: %w", err)
+		}
+
+		// Record verification action in history
+		if uc.historyUseCase != nil {
+			var historyChangeType entity.BusinessTripHistoryChangeType
+			switch verificatorStatus {
+			case entity.VerificatorStatusApproved:
+				historyChangeType = entity.HistoryChangeTypeVerificationApproved
+			case entity.VerificatorStatusRejected:
+				historyChangeType = entity.HistoryChangeTypeVerificationRejected
+			default:
+				historyChangeType = entity.HistoryChangeTypeVerificationPending
+			}
+
+			_ = uc.historyUseCase.Execute(ctx, RecordHistoryInput{
+				BusinessTripID: req.BusinessTripID,
+				ChangeType:     historyChangeType,
+				FieldName:      "verificator",
+				NewValue:       string(verificatorStatus),
+				ChangedBy:      authenticatedUser.GetFullName(),
+				Notes:          req.VerificationNotes,
+			})
 		}
 
 		// Check if all verificators have now responded (approved or rejected)

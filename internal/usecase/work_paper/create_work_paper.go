@@ -3,6 +3,7 @@ package work_paper
 import (
 	"context"
 
+	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/service"
 )
 
@@ -52,10 +53,10 @@ type CreateResponse struct {
 }
 
 // Execute executes the use case
-func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest) (*CreateResponse, error) {
+func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest, authenticatedUser entity.AuthenticatedUser) (*CreateResponse, error) {
 	// Create service request
 	serviceReq := &service.CreateWorkPaperRequest{
-		OrganizationID: req.OrganizationID,
+		OrganizationID: authenticatedUser.Organization.ID.String(),
 		Year:           req.Year,
 		Semester:       req.Semester,
 	}

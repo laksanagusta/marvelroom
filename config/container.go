@@ -69,6 +69,8 @@ type Container struct {
 	GetDashboardUseCase                    *businessTripUC.GetDashboardUseCase
 	VerifyBusinessTripUseCase              *businessTripUC.VerifyBusinessTripUseCase
 	ListVerificatorsUseCase                *businessTripUC.ListVerificatorsUseCase
+	RecordHistoryUseCase                   *businessTripUC.RecordHistoryUseCase
+	GetHistoriesUseCase                    *businessTripUC.GetHistoriesUseCase
 
 	// Assignee Use Cases
 	GetAssigneeUseCase    *businessTripUC.GetAssigneeUseCase
@@ -115,6 +117,7 @@ type Container struct {
 	WorkPaperRepo               repository.WorkPaperRepository
 	WorkPaperNoteRepo           repository.WorkPaperNoteRepository
 	WorkPaperSignatureRepo      repository.WorkPaperSignatureRepository
+	BusinessTripHistoryRepo     repository.BusinessTripHistoryRepository
 
 	// Backward compatibility aliases (deprecated)
 	MasterLakipItemRepo repository.MasterLakipItemRepository
@@ -156,6 +159,7 @@ func NewContainer(cfg *Config) *Container {
 	businessTripRepo := postgresRepo.NewBusinessTripRepository(dbWrapper)
 	assigneeRepo := postgresRepo.NewAssigneeRepository(dbWrapper)
 	transactionRepo := postgresRepo.NewBusinessTripTransactionRepository(dbWrapper)
+	businessTripHistoryRepo := postgresRepo.NewBusinessTripHistoryRepository(dbWrapper)
 
 	// Domain Services - moved up before use cases that use it
 	transactionService := service.NewTransactionService(geminiClient)
@@ -166,11 +170,15 @@ func NewContainer(cfg *Config) *Container {
 	// Vaccines infrastructure
 	vaccinesRepo := postgresRepo.NewVaccinesRepository(dbWrapper)
 
+	// History Use Cases - Must be created before they are used
+	recordHistoryUseCase := businessTripUC.NewRecordHistoryUseCase(businessTripHistoryRepo)
+	getHistoriesUseCase := businessTripUC.NewGetHistoriesUseCase(businessTripHistoryRepo)
+
 	// Business Trip Use Cases - Now enabled!
-	createBusinessTripUseCase := businessTripUC.NewCreateBusinessTripUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper)
+	createBusinessTripUseCase := businessTripUC.NewCreateBusinessTripUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper, recordHistoryUseCase)
 	getBusinessTripUseCase := businessTripUC.NewGetBusinessTripUseCase(businessTripRepo)
-	updateBusinessTripUseCase := businessTripUC.NewUpdateBusinessTripUseCase(businessTripRepo)
-	updateBusinessTripWithAssigneesUseCase := businessTripUC.NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper)
+	updateBusinessTripUseCase := businessTripUC.NewUpdateBusinessTripUseCase(businessTripRepo, recordHistoryUseCase)
+	updateBusinessTripWithAssigneesUseCase := businessTripUC.NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper, recordHistoryUseCase)
 	deleteBusinessTripUseCase := businessTripUC.NewDeleteBusinessTripUseCase(businessTripRepo)
 	listBusinessTripsUseCase := businessTripUC.NewListBusinessTripsUseCase(businessTripRepo)
 	addAssigneeUseCase := businessTripUC.NewAddAssigneeUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper)
@@ -188,7 +196,7 @@ func NewContainer(cfg *Config) *Container {
 	getDashboardUseCase := businessTripUC.NewGetDashboardUseCase(businessTripRepo, assigneeRepo, transactionRepo)
 
 	// New Verification Use Cases
-	verifyBusinessTripUseCase := businessTripUC.NewVerifyBusinessTripUseCase(businessTripRepo, userService, dbWrapper)
+	verifyBusinessTripUseCase := businessTripUC.NewVerifyBusinessTripUseCase(businessTripRepo, userService, dbWrapper, recordHistoryUseCase)
 	listVerificatorsUseCase := businessTripUC.NewListVerificatorsUseCase(businessTripRepo)
 
 	// New Transaction Use Cases
@@ -230,6 +238,7 @@ func NewContainer(cfg *Config) *Container {
 		addTransactionUseCase,
 		getBusinessTripSummaryUseCase,
 		getAssigneeSummaryUseCase,
+		getHistoriesUseCase,
 	)
 
 	// Assignee handler
@@ -437,6 +446,7 @@ func NewContainer(cfg *Config) *Container {
 		WorkPaperRepo:               workPaperRepo,
 		WorkPaperNoteRepo:           workPaperNoteRepo,
 		WorkPaperSignatureRepo:      workPaperSignatureRepo,
+		BusinessTripHistoryRepo:     businessTripHistoryRepo,
 
 		// Backward compatibility aliases (deprecated)
 		MasterLakipItemRepo: masterLakipItemRepo,

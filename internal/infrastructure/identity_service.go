@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -143,8 +142,6 @@ func (s *IdentityService) GetUsersByEmployeeIDs(ctx context.Context, employeeIDs
 		s.baseURL,
 		len(employeeIDs),
 		employeeIDParam)
-
-	log.Println("url", url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

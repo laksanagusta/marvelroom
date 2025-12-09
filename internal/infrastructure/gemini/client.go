@@ -144,6 +144,7 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
           "subtotal": number, -> hasil amount*total_night kalo dia accomodation tapi kalo selain itu langsung ambil dari amount aja
 	      "description" : string, -> ini adalah keterangan transaksi ini transaksi apa, misalkan gojek dari alamat1 ke alamat2, kalo hotel jelasin juga hotelnya
 	      "transport_detail" : string, -> ini terisi hanya jika dia transport darat ya (pesawat tidak termasuk) 1.jika dia dari bandara soetta atau tujuannya ke bandara soetta maka valuenya menjadi "transport_asal" atau kalau dia transportasinya di jakarta juga masuk trasnport asal 2.jika mengandung bandara lain selain soetta maka valuenya adalah "transport_daerah"
+	      "is_valid": boolean -> PENTING: Validasi keaslian dokumen transaksi ini (lihat instruksi validasi keaslian dokumen di bawah)
         }
       ]
     }
@@ -158,6 +159,36 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
 - Jika nama pemesan di transaksi tersebut tidak tercantum di surat tugas, mohon assign ke salah satu nama yang ada di surat tugas.
 - Jangan menggunakan nama driver sebagai nama transaksi — gunakan nama pemesan.
 - Group semua transaksi di bawah setiap assignee.
+
+VALIDASI KEASLIAN DOKUMEN (DOCUMENT AUTHENTICITY VALIDATION):
+SANGAT PENTING: Untuk setiap transaksi, lakukan analisis untuk mendeteksi potensi dokumen palsu/fraud:
+
+1. VERIFIKASI VISUAL DOKUMEN:
+   - Periksa font dan formatting: dokumen palsu sering menggunakan font yang tidak konsisten atau salah
+   - Periksa logo dan watermark: pastikan logo resmi perusahaan/hotel/maskapai terlihat asli dan tidak cacat
+   - Periksa alignment dan spacing: dokumen palsu sering memiliki masalah alignment atau spacing yang tidak konsisten
+
+2. VERIFIKASI DATA TRANSAKSI:
+   - Periksa apakah tanggal transaksi masuk akal dan sesuai dengan periode perjalanan dinas
+   - Periksa apakah harga wajar untuk jenis layanan dan lokasi yang disebutkan
+   - Periksa apakah ada inkonsistensi data (misalnya: hotel di kota A tapi invoice menyebut kota B)
+   - Periksa nomor invoice/booking reference: dokumen palsu sering menggunakan nomor yang tidak valid atau format yang salah
+
+3. INDIKATOR DOKUMEN PALSU:
+   - Font atau ukuran text yang tidak konsisten dalam satu dokumen
+   - Kesalahan ejaan pada nama perusahaan resmi (hotel, maskapai, perusahaan, dll)
+   - Format tanggal yang tidak standar atau inkonsisten
+   - Harga yang sangat tidak wajar (terlalu murah atau terlalu mahal)
+   - Logo yang buram, terpotong, atau terlihat hasil edit
+   - Kualitas gambar dokumen yang sangat rendah atau tampak di-scan ulang berkali-kali
+   - Informasi yang bertentangan dalam satu dokumen (misalnya check-in dan check-out date yang tidak masuk akal)
+   - Dokumen yang terlihat seperti hasil edit software (misalnya ada jejak copy-paste, layer yang terlihat)
+
+4. SET is_valid FIELD:
+   - is_valid: true  -> Jika dokumen terlihat asli dan tidak ada indikator fraud
+   - is_valid: false -> Jika ditemukan indikator dokumen palsu/fraud, atau ada kejanggalan sedikit saja
+
+Cek dengan super teliti jika Anda merasa dokumen mencurigakan atau tidak yakin, lebih baik set is_valid: false untuk kehati-hatian.
 
 di bawah ini data uang harian aku minta untuk ambil datanya untuk di masukkan ke transactions sesuai dengan kota tujuannya yang ada di surat tugas misalnya dia di surabaya maka dia akan mengambil data jawa timur karena surabaya terletak di jawa timur dan jadikan datanya sebagai allowance
 NO,PROVINSI,SATUAN,LUAR KOTA,DALAM KOTA LEBIH DARI 8 JAM,DIKLAT
@@ -174,7 +205,7 @@ NO,PROVINSI,SATUAN,LUAR KOTA,DALAM KOTA LEBIH DARI 8 JAM,DIKLAT
 11,BANTEN,OH,Rp370.000,Rp150.000,Rp110.000
 12,JAWA BARAT,OH,Rp430.000,Rp170.000,Rp130.000
 13,D.K.I. JAKARTA,OH,Rp530.000,Rp210.000,Rp160.000
-14,JAWA TENGAH,OH,Rp370.000,Rp150.000,Rp110.000
+14,JAWA TENGAH,OH,Rp370.000,Rp150.000Rp110.000
 15,D.I. YOGYAKARTA,OH,Rp420.000,Rp170.000,Rp130.000
 16,JAWA TIMUR,OH,Rp410.000,Rp160.000,Rp120.000
 17,BALI,OH,Rp480.000,Rp190.000,Rp140.000
@@ -325,6 +356,12 @@ func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO,
 	for _, rawAssignee := range geminiRawReport.Assignees {
 		transactionsDTO := make([]transactionDTO.TransactionDTO, 0, len(rawAssignee.Transactions))
 		for _, rawTx := range rawAssignee.Transactions {
+			// Default isValid to true if not provided by AI
+			isValid := true
+			if rawTx.IsValid != nil {
+				isValid = *rawTx.IsValid
+			}
+
 			transactionsDTO = append(transactionsDTO, transactionDTO.TransactionDTO{
 				Name:            rawTx.Name,
 				Type:            rawTx.Type,
@@ -335,6 +372,7 @@ func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO,
 				PaymentType:     "", // Assuming default empty, needs to be derived if applicable
 				Description:     rawTx.Description,
 				TransportDetail: rawTx.TransportDetail,
+				IsValid:         isValid,
 			})
 		}
 
@@ -485,4 +523,5 @@ type rawTransaction struct {
 	Subtotal        int32  `json:"subtotal"`
 	Description     string `json:"description"`
 	TransportDetail string `json:"transport_detail"`
+	IsValid         *bool  `json:"is_valid,omitempty"` // Document authenticity validation from AI
 }

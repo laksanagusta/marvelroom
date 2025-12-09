@@ -24,6 +24,7 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 		r.Get("/", businessTripHandler.ListBusinessTrips)
 		r.Get("/verificators", businessTripVerificationHandler.ListVerificators)
 		r.Get("/:tripId", businessTripHandler.GetBusinessTrip)
+		r.Get("/:tripId/histories", businessTripHandler.GetBusinessTripHistories)
 		r.Put("/:tripId", businessTripHandler.UpdateBusinessTrip)
 		r.Put("/:tripId/with-assignees", businessTripHandler.UpdateBusinessTripWithAssignees)
 		r.Delete("/:tripId", businessTripHandler.DeleteBusinessTrip)

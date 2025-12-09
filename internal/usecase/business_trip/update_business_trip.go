@@ -11,11 +11,16 @@ import (
 
 type UpdateBusinessTripUseCase struct {
 	businessTripRepo repository.BusinessTripRepository
+	historyUseCase   *RecordHistoryUseCase
 }
 
-func NewUpdateBusinessTripUseCase(businessTripRepo repository.BusinessTripRepository) *UpdateBusinessTripUseCase {
+func NewUpdateBusinessTripUseCase(
+	businessTripRepo repository.BusinessTripRepository,
+	historyUseCase *RecordHistoryUseCase,
+) *UpdateBusinessTripUseCase {
 	return &UpdateBusinessTripUseCase{
 		businessTripRepo: businessTripRepo,
+		historyUseCase:   historyUseCase,
 	}
 }
 
@@ -82,11 +87,26 @@ func (uc *UpdateBusinessTripUseCase) Execute(ctx context.Context, req UpdateBusi
 		return nil, entity.ErrInvalidDateRange
 	}
 
-	// Update status if provided
+	// Update status if provided and track in history
 	if req.Status.IsSet() {
+		oldStatus := string(businessTrip.Status)
 		newStatus := entity.BusinessTripStatus(req.Status.String)
+
 		if err := businessTrip.UpdateStatus(newStatus); err != nil {
 			return nil, err
+		}
+
+		if uc.historyUseCase != nil && oldStatus != string(newStatus) {
+			err = uc.historyUseCase.Execute(ctx, RecordHistoryInput{
+				BusinessTripID: businessTrip.ID,
+				ChangeType:     entity.HistoryChangeTypeStatusChange,
+				FieldName:      "status",
+				OldValue:       oldStatus,
+				NewValue:       string(newStatus),
+			})
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

@@ -9,6 +9,7 @@ var (
 	ErrInvalidDateRange     = errors.New("invalid date range")
 	ErrDuplicateSPDNumber   = errors.New("duplicate SPD number")
 	ErrUnauthorizedAccess   = errors.New("unauthorized access")
+	ErrInvalidInput         = errors.New("invalid input")
 
 	// Desk module errors
 	ErrWorkPaperItemNotFound          = errors.New("work paper item not found")

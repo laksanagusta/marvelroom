@@ -74,6 +74,7 @@ type TransactionDTO struct {
 	PaymentType     string `json:"payment_type"`
 	Description     string `json:"description"`
 	TransportDetail string `json:"transport_detail"`
+	IsValid         bool   `json:"is_valid"`
 }
 
 func (tx *TransactionDTO) Validate(fieldPrefix string) error {

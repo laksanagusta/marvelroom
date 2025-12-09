@@ -21,9 +21,9 @@ import (
 const (
 	insertBusinessTrip = `
 		INSERT INTO business_trips (
-			id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
+			id, organization_id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
 			spd_date, departure_date, return_date, status, document_link, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id
 	`
 
@@ -36,7 +36,7 @@ const (
 
 	findBusinessTripByID = `
 		SELECT
-			bt.id, bt.business_trip_number, bt.start_date, bt.end_date, bt.activity_purpose, bt.destination_city,
+			bt.id, bt.organization_id, bt.business_trip_number, bt.start_date, bt.end_date, bt.activity_purpose, bt.destination_city,
 			bt.spd_date, bt.departure_date, bt.return_date, bt.status, bt.document_link, bt.created_at, bt.updated_at
 		FROM business_trips bt
 		WHERE bt.id = $1 AND bt.deleted_at IS NULL
@@ -87,22 +87,22 @@ const (
 	insertTransaction = `
 		INSERT INTO assignee_transactions (
 			id, assignee_id, name, type, subtype, amount, total_night, subtotal,
-			description, transport_detail, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			description, transport_detail, is_valid, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
 
 	updateTransaction = `
 		UPDATE assignee_transactions
 		SET name = $2, type = $3, subtype = $4, amount = $5, total_night = $6, subtotal = $7,
-			description = $8, transport_detail = $9, updated_at = $10
+			description = $8, transport_detail = $9, is_valid = $10, updated_at = $11
 		WHERE id = $1
 	`
 
 	findTransactionByID = `
 		SELECT
 			t.id, t.assignee_id, t.name, t.type, t.subtype, t.amount, t.total_night, t.subtotal,
-			t.description, t.transport_detail, t.created_at, t.updated_at
+			t.description, t.transport_detail, t.is_valid, t.created_at, t.updated_at
 		FROM assignee_transactions t
 		WHERE t.id = $1 AND t.deleted_at IS NULL
 	`
@@ -110,7 +110,7 @@ const (
 	findTransactionsByAssigneeID = `
 		SELECT
 			t.id, t.assignee_id, t.name, t.type, t.subtype, t.amount, t.total_night, t.subtotal,
-			t.description, t.transport_detail, t.created_at, t.updated_at
+			t.description, t.transport_detail, t.is_valid, t.created_at, t.updated_at
 		FROM assignee_transactions t
 		WHERE t.assignee_id = $1 AND t.deleted_at IS NULL
 		ORDER BY t.created_at
@@ -249,6 +249,7 @@ func (r *businessTripRepository) Create(ctx context.Context, bt *entity.Business
 
 	err := r.db.GetContext(ctx, &returnedID, insertBusinessTrip,
 		bt.ID,
+		bt.OrganizationID,
 		bt.BusinessTripNumber,
 		bt.StartDate,
 		bt.EndDate,
@@ -390,7 +391,7 @@ func (r *businessTripRepository) List(ctx context.Context, params *pagination.Qu
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
 		SELECT
-			id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
+			id, organization_id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
 			spd_date, departure_date, return_date, status, document_link, created_at, updated_at
 		FROM business_trips`)
 
@@ -640,6 +641,7 @@ func (r *businessTripRepository) CreateTransaction(ctx context.Context, transact
 		transaction.Subtotal,
 		transaction.Description,
 		transaction.TransportDetail,
+		transaction.IsValid,
 		now,
 		now,
 	)
@@ -686,6 +688,7 @@ func (r *businessTripRepository) UpdateTransaction(ctx context.Context, transact
 		transaction.Subtotal,
 		transaction.Description,
 		transaction.TransportDetail,
+		transaction.IsValid,
 		now,
 	)
 	if err != nil {

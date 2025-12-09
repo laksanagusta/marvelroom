@@ -3,6 +3,7 @@ package business_trip
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -16,19 +17,28 @@ type UpdateBusinessTripWithAssigneesUseCase struct {
 	transactionRepo  repository.BusinessTripTransactionRepository
 	userService      *service.UserService
 	db               database.DB
+	historyUseCase   *RecordHistoryUseCase
 }
 
-func NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo repository.BusinessTripRepository, assigneeRepo repository.AssigneeRepository, transactionRepo repository.BusinessTripTransactionRepository, userService *service.UserService, db database.DB) *UpdateBusinessTripWithAssigneesUseCase {
+func NewUpdateBusinessTripWithAssigneesUseCase(
+	businessTripRepo repository.BusinessTripRepository,
+	assigneeRepo repository.AssigneeRepository,
+	transactionRepo repository.BusinessTripTransactionRepository,
+	userService *service.UserService,
+	db database.DB,
+	historyUseCase *RecordHistoryUseCase,
+) *UpdateBusinessTripWithAssigneesUseCase {
 	return &UpdateBusinessTripWithAssigneesUseCase{
 		businessTripRepo: businessTripRepo,
 		assigneeRepo:     assigneeRepo,
 		transactionRepo:  transactionRepo,
 		userService:      userService,
 		db:               db,
+		historyUseCase:   historyUseCase,
 	}
 }
 
-func (uc *UpdateBusinessTripWithAssigneesUseCase) Execute(ctx context.Context, req UpdateBusinessTripWithAssigneesRequest) (*BusinessTripResponse, error) {
+func (uc *UpdateBusinessTripWithAssigneesUseCase) Execute(ctx context.Context, req UpdateBusinessTripWithAssigneesRequest, authenticatedUser entity.AuthenticatedUser) (*BusinessTripResponse, error) {
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
@@ -50,10 +60,21 @@ func (uc *UpdateBusinessTripWithAssigneesUseCase) Execute(ctx context.Context, r
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)
 	}
 
-	bt, err := req.ToEntity(req.BusinessTripID)
+	bt, err := req.ToEntity(req.BusinessTripID, authenticatedUser.Organization.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert request to entity: %w", err)
 	}
+
+	// Get old business trip for comparison
+	oldBusinessTrip, err := uc.businessTripRepo.GetByID(ctx, req.BusinessTripID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get existing business trip: %w", err)
+	}
+	if oldBusinessTrip == nil {
+		return nil, entity.ErrBusinessTripNotFound
+	}
+
+	oldStatus := string(oldBusinessTrip.Status)
 
 	var result *entity.BusinessTrip
 	err = uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
@@ -72,6 +93,22 @@ func (uc *UpdateBusinessTripWithAssigneesUseCase) Execute(ctx context.Context, r
 		_, err = repoWithTx.Update(ctx, bt)
 		if err != nil {
 			return fmt.Errorf("failed to update business trip: %w", err)
+		}
+
+		// Track status change if status has changed
+		newStatus := string(bt.Status)
+		if uc.historyUseCase != nil && oldStatus != newStatus {
+			log.Println("status is changed in update_business_trip_with_assignees")
+			err = uc.historyUseCase.Execute(ctx, RecordHistoryInput{
+				BusinessTripID: bt.ID,
+				ChangeType:     entity.HistoryChangeTypeStatusChange,
+				FieldName:      "status",
+				OldValue:       oldStatus,
+				NewValue:       newStatus,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to record history: %w", err)
+			}
 		}
 
 		existingAssignees, err := assigneeRepoWithTx.GetAssigneesByBusinessTripIDWithoutTransactions(ctx, req.BusinessTripID)
