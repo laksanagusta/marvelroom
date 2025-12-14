@@ -149,7 +149,7 @@ func (s *IdentityService) GetUsersByEmployeeIDs(ctx context.Context, employeeIDs
 	}
 
 	if s.apiKey != "" {
-		req.Header.Set("X-API-Key", s.apiKey)
+		req.Header.Set("x-api-key", s.apiKey)
 	}
 
 	resp, err := s.httpClient.Do(req)
@@ -194,7 +194,7 @@ func (s *IdentityService) GetOrganizations(ctx context.Context, page, limit int,
 	}
 
 	if s.apiKey != "" {
-		req.Header.Set("X-API-Key", s.apiKey)
+		req.Header.Set("x-api-key", s.apiKey)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -226,7 +226,7 @@ func (s *IdentityService) GetOrganizationByID(ctx context.Context, id string) (*
 	}
 
 	if s.apiKey != "" {
-		req.Header.Set("X-API-Key", s.apiKey)
+		req.Header.Set("x-api-key", s.apiKey)
 	}
 	req.Header.Set("Content-Type", "application/json")
 

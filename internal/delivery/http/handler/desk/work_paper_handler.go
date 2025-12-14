@@ -10,6 +10,7 @@ import (
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/service"
 	"sandbox/internal/usecase/work_paper"
+	"sandbox/pkg/pagination"
 )
 
 // WorkPaperHandler handles HTTP requests for work paper
@@ -77,7 +78,7 @@ func (h *WorkPaperHandler) CreateWorkPaper(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*entity.AuthenticatedUser)
+	user := c.Locals("authenticatedUser").(*entity.AuthenticatedUser)
 
 	// Execute use case
 	ctx := context.Background()
@@ -112,37 +113,24 @@ func (h *WorkPaperHandler) CreateWorkPaper(c *fiber.Ctx) error {
 // @Failure 500 {object} StandardResponse
 // @Router /api/v1/desk/work-papers [get]
 func (h *WorkPaperHandler) ListWorkPapers(c *fiber.Ctx) error {
-	// Parse query parameters
-	req := work_paper.ListRequest{
-		Page:     c.QueryInt("page", 1),
-		PageSize: c.QueryInt("page_size", 10),
-	}
+	// Collect all query parameters
+	queryParams := make(map[string]string)
+	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+		queryParams[string(key)] = string(value)
+	})
 
-	// Set optional filters
-	if orgID := c.Query("organization_id"); orgID != "" {
-		req.OrganizationID = orgID
-	}
-	if year := c.QueryInt("year", 0); year != 0 {
-		req.Year = &year
-	}
-	if semester := c.QueryInt("semester", 0); semester != 0 {
-		req.Semester = &semester
-	}
-	if status := c.Query("status"); status != "" {
-		req.Status = status
-	}
-
-	// Validate request
-	if err := h.validator.Struct(&req); err != nil {
+	// Parse using QueryParser
+	queryParser := &pagination.QueryParser{}
+	params, err := queryParser.Parse(queryParams)
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Validation failed",
-			"details": err.Error(),
+			"error": "Invalid query parameters: " + err.Error(),
 		})
 	}
 
 	// Execute use case
 	ctx := context.Background()
-	response, err := h.listUseCase.Execute(ctx, req)
+	workPapers, paginationResp, err := h.listUseCase.Execute(ctx, params)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to list work papers",
@@ -150,14 +138,10 @@ func (h *WorkPaperHandler) ListWorkPapers(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success":     true,
-		"data":        response.Data,
-		"page":        response.Metadata.CurrentPage,
-		"limit":       response.Metadata.PageSize,
-		"total_items": response.Metadata.TotalCount,
-		"total_pages": response.Metadata.TotalPage,
-	})
+	// Set data and return
+	paginationResp.Data = workPapers
+
+	return c.JSON(paginationResp)
 }
 
 // UpdateWorkPaperStatus updates the status of a work paper

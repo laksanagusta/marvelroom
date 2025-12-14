@@ -383,33 +383,18 @@ func (s *deskService) UpdateWorkPaperStatus(ctx context.Context, id string, stat
 	return nil
 }
 
-func (s *deskService) ListWorkPapers(ctx context.Context, req *ListWorkPapersRequest) ([]*entity.WorkPaper, int64, error) {
-	// Simplified implementation for now
-	workPapers, total, err := s.workPaperRepo.List(ctx, nil)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list work papers: %w", err)
+func (s *deskService) ListWorkPapers(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaper, int64, error) {
+	// Handle nil params with defaults
+	if params == nil {
+		params = &pagination.QueryParams{
+			Pagination: pagination.Pagination{Page: 1, Limit: 20},
+		}
 	}
 
-	// Apply filters
-	if req.OrganizationID != "" || req.Year != nil || req.Semester != nil || req.Status != "" {
-		var filteredWorkPapers []*entity.WorkPaper
-		for _, workPaper := range workPapers {
-			if req.OrganizationID != "" && workPaper.OrganizationID.String() != req.OrganizationID {
-				continue
-			}
-			if req.Year != nil && workPaper.Year != *req.Year {
-				continue
-			}
-			if req.Semester != nil && workPaper.Semester != *req.Semester {
-				continue
-			}
-			if req.Status != "" && workPaper.Status != req.Status {
-				continue
-			}
-			filteredWorkPapers = append(filteredWorkPapers, workPaper)
-		}
-		workPapers = filteredWorkPapers
-		total = int64(len(filteredWorkPapers))
+	// Call repository with pagination params
+	workPapers, total, err := s.workPaperRepo.List(ctx, params)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list work papers: %w", err)
 	}
 
 	// Fetch organization data for each work paper

@@ -3,7 +3,6 @@ package business_trip
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -79,16 +78,15 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 			return err
 		}
 
-		// Record initial status in history
+		// Record initial status in history (within the same transaction)
 		if uc.historyUseCase != nil {
-			log.Println("recording initial status in create_business_trip")
-			err = uc.historyUseCase.Execute(ctx, RecordHistoryInput{
+			err = uc.historyUseCase.ExecuteWithTx(ctx, RecordHistoryInput{
 				BusinessTripID: businessTrip.ID,
 				ChangeType:     entity.HistoryChangeTypeStatusChange,
 				FieldName:      "status",
 				OldValue:       "",
 				NewValue:       string(businessTrip.Status),
-			})
+			}, tx)
 			if err != nil {
 				return fmt.Errorf("failed to record history: %w", err)
 			}

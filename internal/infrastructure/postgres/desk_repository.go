@@ -303,21 +303,94 @@ func (r *workPaperRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *workPaperRepository) List(ctx context.Context, params interface{}) ([]*entity.WorkPaper, int64, error) {
-	query := `
-		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
-		FROM work_papers
-		WHERE deleted_at IS NULL
-		ORDER BY created_at DESC
-	`
+func (r *workPaperRepository) List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaper, int64, error) {
+	// Handle nil params with defaults
+	if params == nil {
+		params = &pagination.QueryParams{
+			Pagination: pagination.Pagination{Page: 1, Limit: 20},
+		}
+	}
 
-	var wps []*entity.WorkPaper
-	err := r.db.SelectContext(ctx, &wps, query)
+	// Build count query
+	countBuilder := pagination.NewQueryBuilder("SELECT COUNT(*) FROM work_papers")
+
+	// Add deleted_at filter
+	countBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, filter := range params.Filters {
+		if err := countBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+	countQuery, countArgs := countBuilder.Build()
+
+	var totalCount int64
+	err := r.db.GetContext(ctx, &totalCount, countQuery, countArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count work papers: %w", err)
+	}
+
+	// Build main query
+	queryBuilder := pagination.NewQueryBuilder(`
+		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+		FROM work_papers`)
+
+	// Add deleted_at filter
+	queryBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, filter := range params.Filters {
+		if err := queryBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Add default sorting if no sorts provided
+	if len(params.Sorts) == 0 {
+		params.Sorts = []pagination.Sort{
+			{Field: "created_at", Order: "desc"},
+		}
+	}
+
+	for _, sort := range params.Sorts {
+		if err := queryBuilder.AddSort(sort); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	query, args := queryBuilder.Build()
+
+	// Add pagination
+	offset := (params.Pagination.Page - 1) * params.Pagination.Limit
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", params.Pagination.Limit, offset)
+
+	var workPapers []*entity.WorkPaper
+	rows, err := r.db.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query work papers: %w", err)
 	}
+	defer rows.Close()
 
-	return wps, int64(len(wps)), nil
+	for rows.Next() {
+		var wp entity.WorkPaper
+		if err := rows.StructScan(&wp); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan work paper: %w", err)
+		}
+		workPapers = append(workPapers, &wp)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return workPapers, totalCount, nil
 }
 
 func (r *workPaperRepository) ListByOrganization(ctx context.Context, organizationID string) ([]*entity.WorkPaper, error) {

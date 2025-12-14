@@ -71,7 +71,7 @@ func (h *BusinessTripHandler) CreateBusinessTrip(c *fiber.Ctx) error {
 		})
 	}
 
-	user := c.Locals("user").(*entity.AuthenticatedUser)
+	user := c.Locals("authenticatedUser").(*entity.AuthenticatedUser)
 
 	// Call usecase directly
 	response, err := h.createBusinessTripUseCase.Execute(context.Background(), req, *user)
@@ -198,7 +198,7 @@ func (h *BusinessTripHandler) UpdateBusinessTripWithAssignees(c *fiber.Ctx) erro
 		})
 	}
 
-	user := c.Locals("user").(*entity.AuthenticatedUser)
+	user := c.Locals("authenticatedUser").(*entity.AuthenticatedUser)
 
 	// Call usecase directly
 	_, err := h.updateBusinessTripWithAssigneesUseCase.Execute(context.Background(), req, *user)

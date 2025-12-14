@@ -153,3 +153,10 @@ func (r *businessTripHistoryRepository) FindByBusinessTripIDAndChangeType(ctx co
 
 	return histories, nil
 }
+
+// WithTransaction returns a new repository instance with the given transaction
+func (r *businessTripHistoryRepository) WithTransaction(tx database.DBTx) repository.BusinessTripHistoryRepository {
+	return &businessTripHistoryRepository{
+		db: tx,
+	}
+}

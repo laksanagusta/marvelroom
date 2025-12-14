@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,7 @@ type Config struct {
 	User         UserConfig
 	CDC          CDCConfig
 	CORS         CORSConfig
+	Crypto       CryptoConfig
 }
 
 // ServerConfig holds server-related configuration
@@ -50,7 +52,8 @@ type ZoomConfig struct {
 
 // DriveConfig holds Google Drive API configuration
 type DriveConfig struct {
-	APIKey string
+	APIKey            string
+	CredentialsBase64 string // Base64-encoded service account JSON (required)
 }
 
 // NotificationConfig holds notification service configuration
@@ -60,8 +63,9 @@ type NotificationConfig struct {
 
 // UserConfig holds user service API configuration
 type UserConfig struct {
-	BaseURL string
-	APIKey  string
+	BaseURL     string
+	IdentityURL string
+	APIKey      string
 }
 
 // CDCConfig holds CDC API configuration
@@ -74,6 +78,12 @@ type CDCConfig struct {
 // CORSConfig holds CORS configuration
 type CORSConfig struct {
 	AllowOrigins string
+}
+
+// CryptoConfig holds cryptography configuration for digital signatures
+type CryptoConfig struct {
+	PrivateKeyBase64 string // Base64-encoded private PEM (required)
+	PublicKeyBase64  string // Base64-encoded public PEM (required)
 }
 
 // Load loads configuration from environment variables
@@ -112,14 +122,16 @@ func Load() (*Config, error) {
 			APISecret: os.Getenv("ZOOM_API_SECRET"),
 		},
 		Drive: DriveConfig{
-			APIKey: os.Getenv("GOOGLE_DRIVE_API_KEY"),
+			APIKey:            os.Getenv("GOOGLE_DRIVE_API_KEY"),
+			CredentialsBase64: os.Getenv("GOOGLE_DRIVE_CREDENTIALS_BASE64"),
 		},
 		Notification: NotificationConfig{
 			APIKey: os.Getenv("NOTIFICATION_API_KEY"),
 		},
 		User: UserConfig{
-			BaseURL: getEnv("USER_SERVICE_BASE_URL", "http://localhost:5001/api/v1/external"),
-			APIKey:  getEnv("USER_SERVICE_API_KEY", "56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8"),
+			BaseURL:     getEnv("USER_SERVICE_BASE_URL", "http://localhost:5001/external/api/v1"),
+			IdentityURL: getEnv("USER_SERVICE_IDENTITY_URL", "http://localhost:5001/api/v1"),
+			APIKey:      getEnv("USER_SERVICE_API_KEY", "56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8"),
 		},
 		CDC: CDCConfig{
 			BaseURL:    getEnv("CDC_API_BASE_URL", "https://travel.state.gov/_travel-resources/content/travel-resources/www.tripsofia.com/api/v1"),
@@ -128,6 +140,10 @@ func Load() (*Config, error) {
 		},
 		CORS: CORSConfig{
 			AllowOrigins: getEnv("CORS_ALLOW_ORIGINS", "http://localhost:3000"),
+		},
+		Crypto: CryptoConfig{
+			PrivateKeyBase64: os.Getenv("PRIVATE_KEY_BASE64"),
+			PublicKeyBase64:  os.Getenv("PUBLIC_KEY_BASE64"),
 		},
 	}
 
@@ -168,6 +184,48 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// DecodeCredentials decodes the base64-encoded credentials into bytes
+func (d *DriveConfig) DecodeCredentials() ([]byte, error) {
+	if d.CredentialsBase64 == "" {
+		return nil, nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(d.CredentialsBase64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 credentials: %w", err)
+	}
+
+	return decoded, nil
+}
+
+// DecodePrivateKey decodes the base64-encoded private key into bytes
+func (c *CryptoConfig) DecodePrivateKey() ([]byte, error) {
+	if c.PrivateKeyBase64 == "" {
+		return nil, nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(c.PrivateKeyBase64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 private key: %w", err)
+	}
+
+	return decoded, nil
+}
+
+// DecodePublicKey decodes the base64-encoded public key into bytes
+func (c *CryptoConfig) DecodePublicKey() ([]byte, error) {
+	if c.PublicKeyBase64 == "" {
+		return nil, nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(c.PublicKeyBase64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 public key: %w", err)
+	}
+
+	return decoded, nil
 }
 
 func getEnv(key, defaultValue string) string {

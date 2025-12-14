@@ -40,7 +40,7 @@ type WorkPaperRepository interface {
 	GetByFilter(ctx context.Context, filter *WorkPaperFilter, page, limit int) ([]*entity.WorkPaper, int64, error)
 	Update(ctx context.Context, wp *entity.WorkPaper) (*entity.WorkPaper, error)
 	Delete(ctx context.Context, id string) error
-	List(ctx context.Context, params interface{}) ([]*entity.WorkPaper, int64, error)
+	List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaper, int64, error)
 	ListByOrganization(ctx context.Context, organizationID string) ([]*entity.WorkPaper, error)
 }
 
@@ -57,6 +57,8 @@ type WorkPaperNoteRepository interface {
 }
 
 // Backward compatibility aliases (deprecated)
-type MasterLakipItemRepository = WorkPaperItemRepository
-type PaperWorkRepository = WorkPaperRepository
-type PaperWorkItemRepository = WorkPaperNoteRepository
+type (
+	MasterLakipItemRepository = WorkPaperItemRepository
+	PaperWorkRepository       = WorkPaperRepository
+	PaperWorkItemRepository   = WorkPaperNoteRepository
+)

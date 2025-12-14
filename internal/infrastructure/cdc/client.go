@@ -104,7 +104,7 @@ func (c *CDCClient) GetDestinationInfo(ctx context.Context, countryCode string) 
 	}
 
 	if c.apiKey != "" {
-		req.Header.Set("X-Api-Key", c.apiKey)
+		req.Header.Set("x-api-key", c.apiKey)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -143,7 +143,7 @@ func (c *CDCClient) GetTravelHealthNotices(ctx context.Context, countryCode stri
 	}
 
 	if c.apiKey != "" {
-		req.Header.Set("X-Api-Key", c.apiKey)
+		req.Header.Set("x-api-key", c.apiKey)
 	}
 	req.Header.Set("Content-Type", "application/json")
 

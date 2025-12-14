@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"sandbox/internal/domain/entity"
+	"sandbox/pkg/database"
 )
 
 // BusinessTripHistoryRepository defines the interface for business trip history repository
@@ -19,4 +20,7 @@ type BusinessTripHistoryRepository interface {
 
 	// FindByBusinessTripIDAndChangeType retrieves history records by business trip ID and change type
 	FindByBusinessTripIDAndChangeType(ctx context.Context, businessTripID string, changeType entity.BusinessTripHistoryChangeType) ([]*entity.BusinessTripHistory, error)
+
+	// WithTransaction returns a new repository instance with the given transaction
+	WithTransaction(tx database.DBTx) BusinessTripHistoryRepository
 }

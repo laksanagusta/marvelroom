@@ -10,22 +10,22 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 )
 
 // DigitalSignatureService handles certificate-based digital signatures
 type DigitalSignatureService struct {
-	privateKeyPath string
-	publicKeyPath  string
+	privateKeyBytes []byte // PEM bytes from base64 (required)
+	publicKeyBytes  []byte // PEM bytes from base64 (required)
 }
 
 // NewDigitalSignatureService creates a new instance of DigitalSignatureService
-func NewDigitalSignatureService(privateKeyPath, publicKeyPath string) *DigitalSignatureService {
+// Accepts base64-decoded PEM bytes for private and public keys
+func NewDigitalSignatureService(privateKeyBytes, publicKeyBytes []byte) *DigitalSignatureService {
 	return &DigitalSignatureService{
-		privateKeyPath: privateKeyPath,
-		publicKeyPath:  publicKeyPath,
+		privateKeyBytes: privateKeyBytes,
+		publicKeyBytes:  publicKeyBytes,
 	}
 }
 
@@ -45,19 +45,19 @@ type SignatureResult struct {
 	Algorithm string    `json:"algorithm"`
 }
 
-// loadPrivateKey loads the RSA private key from file
+// loadPrivateKey loads the RSA private key from bytes
 func (s *DigitalSignatureService) loadPrivateKey() (*rsa.PrivateKey, error) {
-	privateKeyBytes, err := os.ReadFile(s.privateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load private key: %w", err)
+	if len(s.privateKeyBytes) == 0 {
+		return nil, fmt.Errorf("private key required: set PRIVATE_KEY_BASE64 environment variable")
 	}
 
-	privateBlock, _ := pem.Decode(privateKeyBytes)
+	privateBlock, _ := pem.Decode(s.privateKeyBytes)
 	if privateBlock == nil || privateBlock.Type != "RSA PRIVATE KEY" && privateBlock.Type != "PRIVATE KEY" {
 		return nil, fmt.Errorf("failed to decode PEM block containing private key")
 	}
 
 	var privateKey interface{}
+	var err error
 	if privateBlock.Type == "RSA PRIVATE KEY" {
 		privateKey, err = x509.ParsePKCS1PrivateKey(privateBlock.Bytes)
 	} else {
@@ -76,19 +76,19 @@ func (s *DigitalSignatureService) loadPrivateKey() (*rsa.PrivateKey, error) {
 	return rsaPrivateKey, nil
 }
 
-// loadPublicKey loads the RSA public key from file
+// loadPublicKey loads the RSA public key from bytes
 func (s *DigitalSignatureService) loadPublicKey() (*rsa.PublicKey, error) {
-	publicKeyBytes, err := os.ReadFile(s.publicKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load public key: %w", err)
+	if len(s.publicKeyBytes) == 0 {
+		return nil, fmt.Errorf("public key required: set PUBLIC_KEY_BASE64 environment variable")
 	}
 
-	publicBlock, _ := pem.Decode(publicKeyBytes)
+	publicBlock, _ := pem.Decode(s.publicKeyBytes)
 	if publicBlock == nil || publicBlock.Type != "PUBLIC KEY" && publicBlock.Type != "RSA PUBLIC KEY" {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
 	}
 
 	var publicKey interface{}
+	var err error
 	if publicBlock.Type == "RSA PUBLIC KEY" {
 		publicKey, err = x509.ParsePKCS1PublicKey(publicBlock.Bytes)
 	} else {

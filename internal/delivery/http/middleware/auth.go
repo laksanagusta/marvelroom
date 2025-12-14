@@ -8,10 +8,21 @@ import (
 	"net/http"
 	"strings"
 
+	"sandbox/internal/domain/entity"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"sandbox/internal/domain/entity"
 )
+
+// identityBaseURL is the base URL for the identity service
+var identityBaseURL = "http://localhost:5001"
+
+// SetIdentityBaseURL sets the base URL for identity service
+func SetIdentityBaseURL(url string) {
+	if url != "" {
+		identityBaseURL = url
+	}
+}
 
 // Role represents a user role from identity service
 type Role struct {
@@ -88,7 +99,7 @@ func callIdentityService(token string) (*entity.AuthenticatedUser, error) {
 	client := &http.Client{}
 
 	// Create request
-	req, err := http.NewRequest("GET", "http://localhost:5001/api/v1/users/whoami", nil)
+	req, err := http.NewRequest("GET", identityBaseURL+"/users/whoami", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

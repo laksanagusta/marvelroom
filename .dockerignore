@@ -19,9 +19,14 @@ Thumbs.db
 # Logs
 *.log
 
-# Local development
-.env.local
-.env.development
+# Local development & Credentials
+.env
+.env.*
+*.json
+*.pem
+*.key
+private.pem
+dika-n8n-*.json
 
 # Test files
 *_test.go

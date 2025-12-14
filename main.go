@@ -21,6 +21,9 @@ func main() {
 	// Initialize dependency injection container
 	container := config.NewContainer(cfg)
 
+	// Set identity service base URL from config
+	middleware.SetIdentityBaseURL(cfg.User.IdentityURL)
+
 	// Setup Fiber app
 	app := fiber.New(fiber.Config{
 		ErrorHandler: customErrorHandler,

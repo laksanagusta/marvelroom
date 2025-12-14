@@ -281,7 +281,13 @@ func NewContainer(cfg *Config) *Container {
 	organizationRepo := infrastructure.NewOrganizationRepository(identityService)
 
 	// Desk Module Services - Use service account authentication
-	gdriveService, err := drive.NewGoogleDriveService("") // Will use default credentials file
+	// Decode base64 credentials if provided
+	credentialsJSON, err := cfg.Drive.DecodeCredentials()
+	if err != nil {
+		panic("Failed to decode Google Drive credentials: " + err.Error())
+	}
+
+	gdriveService, err := drive.NewGoogleDriveService(credentialsJSON)
 	if err != nil {
 		panic("Failed to create Google Drive service: " + err.Error())
 	}
@@ -327,7 +333,20 @@ func NewContainer(cfg *Config) *Container {
 	createPaperWorkUseCase := workPaperUC.NewCreatePaperWorkUseCase(deskService)
 	checkDocumentUseCase := workPaperUC.NewCheckDocumentUseCase(deskService)
 	// Initialize cryptographic service
-	cryptoService := cryptography.NewDigitalSignatureService("private.pem", "public.pem")
+	privateKeyBytes, err := cfg.Crypto.DecodePrivateKey()
+	if err != nil {
+		panic("Failed to decode private key: " + err.Error())
+	}
+
+	publicKeyBytes, err := cfg.Crypto.DecodePublicKey()
+	if err != nil {
+		panic("Failed to decode public key: " + err.Error())
+	}
+
+	cryptoService := cryptography.NewDigitalSignatureService(
+		privateKeyBytes,
+		publicKeyBytes,
+	)
 
 	// Work Paper Signature Use Cases
 	listWorkPaperSignaturesUseCase := workPaperSignatureUC.NewListWorkPaperSignaturesUseCase(workPaperSignatureRepo)

@@ -3,7 +3,9 @@ package work_paper
 import (
 	"context"
 
+	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/service"
+	"sandbox/pkg/pagination"
 )
 
 // ListWorkPapersUseCase handles listing work papers
@@ -18,31 +20,6 @@ func NewListWorkPapersUseCase(deskService service.DeskService) *ListWorkPapersUs
 	}
 }
 
-// ListRequest represents the request payload for listing work papers
-type ListRequest struct {
-	OrganizationID string `json:"organization_id"`
-	Year           *int   `json:"year"`
-	Semester       *int   `json:"semester"`
-	Status         string `json:"status"`
-	Page           int    `json:"page" validate:"min=1"`
-	PageSize       int    `json:"page_size" validate:"min=1,max=100"`
-}
-
-// ListResponse represents the response payload for listing work papers
-type ListResponse struct {
-	Data     []WorkPaperResponse `json:"data"`
-	Metadata Metadata            `json:"metadata"`
-}
-
-// Metadata represents pagination metadata
-type Metadata struct {
-	Count       int `json:"count"`
-	TotalCount  int `json:"total_count"`
-	CurrentPage int `json:"current_page"`
-	TotalPage   int `json:"total_page"`
-	PageSize    int `json:"page_size"`
-}
-
 // WorkPaperResponse represents a single work paper in the response
 type WorkPaperResponse struct {
 	ID             string                `json:"id"`
@@ -55,26 +32,18 @@ type WorkPaperResponse struct {
 	UpdatedAt      string                `json:"updated_at"`
 }
 
-// Execute executes the use case
-func (uc *ListWorkPapersUseCase) Execute(ctx context.Context, req ListRequest) (*ListResponse, error) {
-	// Create service request
-	serviceReq := &service.ListWorkPapersRequest{
-		OrganizationID: req.OrganizationID,
-		Year:           req.Year,
-		Semester:       req.Semester,
-		Status:         req.Status,
-	}
-
+// Execute executes the use case with pagination params
+func (uc *ListWorkPapersUseCase) Execute(ctx context.Context, params *pagination.QueryParams) ([]*WorkPaperResponse, *pagination.PagedResponse, error) {
 	// Get work papers from service
-	workPapers, totalCount, err := uc.deskService.ListWorkPapers(ctx, serviceReq)
+	workPapers, totalCount, err := uc.deskService.ListWorkPapers(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Convert entities to response DTOs
-	var responses []WorkPaperResponse
+	responses := make([]*WorkPaperResponse, 0, len(workPapers))
 	for _, workPaper := range workPapers {
-		response := WorkPaperResponse{
+		response := &WorkPaperResponse{
 			ID:             workPaper.ID.String(),
 			OrganizationID: workPaper.OrganizationID.String(),
 			Year:           workPaper.Year,
@@ -98,25 +67,20 @@ func (uc *ListWorkPapersUseCase) Execute(ctx context.Context, req ListRequest) (
 	}
 
 	// Calculate pagination
-	page := req.Page
-	pageSize := req.PageSize
-	if pageSize == 0 {
-		pageSize = 10 // default page size
-	}
-
-	totalPages := int(totalCount) / pageSize
-	if int(totalCount)%pageSize > 0 {
+	totalPages := int(totalCount) / params.Pagination.Limit
+	if int(totalCount)%params.Pagination.Limit > 0 {
 		totalPages++
 	}
 
-	return &ListResponse{
-		Data: responses,
-		Metadata: Metadata{
-			Count:       len(responses),
-			TotalCount:  int(totalCount),
-			CurrentPage: page,
-			TotalPage:   totalPages,
-			PageSize:    pageSize,
-		},
+	return responses, &pagination.PagedResponse{
+		Page:       params.Pagination.Page,
+		Limit:      params.Pagination.Limit,
+		TotalItems: totalCount,
+		TotalPages: totalPages,
 	}, nil
+}
+
+// ToEntity helper function to convert response to entity (if needed)
+func (r *WorkPaperResponse) ToEntity() *entity.WorkPaper {
+	return nil // Placeholder, implement if needed
 }

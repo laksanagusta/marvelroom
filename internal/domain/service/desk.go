@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"sandbox/internal/domain/entity"
+	"sandbox/pkg/pagination"
 
 	"github.com/google/uuid"
 	"github.com/invopop/validation"
@@ -80,7 +81,7 @@ type DeskService interface {
 	GetWorkPaper(ctx context.Context, id string) (*entity.WorkPaper, error)
 	GetWorkPaperByOrganizationYearSemester(ctx context.Context, organizationID string, year, semester int) (*entity.WorkPaper, error)
 	UpdateWorkPaperStatus(ctx context.Context, id string, status string) error
-	ListWorkPapers(ctx context.Context, params *ListWorkPapersRequest) ([]*entity.WorkPaper, int64, error)
+	ListWorkPapers(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaper, int64, error)
 	ListWorkPapersByOrganization(ctx context.Context, organizationID string) ([]*entity.WorkPaper, error)
 
 	// Work Paper Note operations

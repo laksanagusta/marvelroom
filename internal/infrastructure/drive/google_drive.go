@@ -23,16 +23,18 @@ type GoogleDriveService struct {
 }
 
 // NewGoogleDriveService creates a new Google Drive service instance using service account
-func NewGoogleDriveService(credentialsFile string) (service.DriveService, error) {
-	if credentialsFile == "" {
-		credentialsFile = "dika-n8n-76c1c8c965e5.json"
+// Accepts base64-decoded credentials JSON bytes
+func NewGoogleDriveService(credentialsJSON []byte) (service.DriveService, error) {
+	ctx := context.Background()
+
+	if len(credentialsJSON) == 0 {
+		return nil, fmt.Errorf("Google Drive credentials required. Set GOOGLE_DRIVE_CREDENTIALS_BASE64 environment variable")
 	}
 
-	ctx := context.Background()
-	log.Printf("Creating Google Drive service with credentials file: %s", credentialsFile)
-	srv, err := drive.NewService(ctx, option.WithCredentialsFile(credentialsFile))
+	log.Println("Creating Google Drive service with base64-encoded credentials")
+	srv, err := drive.NewService(ctx, option.WithCredentialsJSON(credentialsJSON))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create Drive client: %v", err)
+		return nil, fmt.Errorf("unable to create Drive client from JSON credentials: %v", err)
 	}
 
 	log.Println("Successfully created Google Drive service")

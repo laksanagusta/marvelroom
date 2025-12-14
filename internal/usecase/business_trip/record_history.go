@@ -6,6 +6,7 @@ import (
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
+	"sandbox/pkg/database"
 )
 
 // RecordHistoryUseCase handles recording history for business trips
@@ -33,6 +34,17 @@ type RecordHistoryInput struct {
 
 // Execute records a history entry for a business trip
 func (uc *RecordHistoryUseCase) Execute(ctx context.Context, input RecordHistoryInput) error {
+	return uc.executeWithRepo(ctx, input, uc.historyRepo)
+}
+
+// ExecuteWithTx records a history entry for a business trip within a transaction
+func (uc *RecordHistoryUseCase) ExecuteWithTx(ctx context.Context, input RecordHistoryInput, tx database.DBTx) error {
+	historyRepoWithTx := uc.historyRepo.WithTransaction(tx)
+	return uc.executeWithRepo(ctx, input, historyRepoWithTx)
+}
+
+// executeWithRepo is the internal implementation that uses the provided repository
+func (uc *RecordHistoryUseCase) executeWithRepo(ctx context.Context, input RecordHistoryInput, repo repository.BusinessTripHistoryRepository) error {
 	// Create new history record
 	history, err := entity.NewBusinessTripHistory(input.BusinessTripID, input.ChangeType)
 	if err != nil {
@@ -61,7 +73,7 @@ func (uc *RecordHistoryUseCase) Execute(ctx context.Context, input RecordHistory
 	}
 
 	// Save to repository
-	if err := uc.historyRepo.Create(ctx, history); err != nil {
+	if err := repo.Create(ctx, history); err != nil {
 		return fmt.Errorf("failed to save history: %w", err)
 	}
 
