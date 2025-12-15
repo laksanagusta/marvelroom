@@ -60,6 +60,7 @@ type Container struct {
 	GetBusinessTripUseCase                 *businessTripUC.GetBusinessTripUseCase
 	UpdateBusinessTripUseCase              *businessTripUC.UpdateBusinessTripUseCase
 	UpdateBusinessTripWithAssigneesUseCase *businessTripUC.UpdateBusinessTripWithAssigneesUseCase
+	UpdateBusinessTripStatusUseCase        *businessTripUC.UpdateBusinessTripStatusUseCase
 	DeleteBusinessTripUseCase              *businessTripUC.DeleteBusinessTripUseCase
 	ListBusinessTripsUseCase               *businessTripUC.ListBusinessTripsUseCase
 	AddAssigneeUseCase                     *businessTripUC.AddAssigneeUseCase
@@ -179,6 +180,7 @@ func NewContainer(cfg *Config) *Container {
 	getBusinessTripUseCase := businessTripUC.NewGetBusinessTripUseCase(businessTripRepo)
 	updateBusinessTripUseCase := businessTripUC.NewUpdateBusinessTripUseCase(businessTripRepo, recordHistoryUseCase)
 	updateBusinessTripWithAssigneesUseCase := businessTripUC.NewUpdateBusinessTripWithAssigneesUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper, recordHistoryUseCase)
+	updateBusinessTripStatusUseCase := businessTripUC.NewUpdateBusinessTripStatusUseCase(businessTripRepo, recordHistoryUseCase)
 	deleteBusinessTripUseCase := businessTripUC.NewDeleteBusinessTripUseCase(businessTripRepo)
 	listBusinessTripsUseCase := businessTripUC.NewListBusinessTripsUseCase(businessTripRepo)
 	addAssigneeUseCase := businessTripUC.NewAddAssigneeUseCase(businessTripRepo, assigneeRepo, transactionRepo, userService, dbWrapper)
@@ -232,6 +234,7 @@ func NewContainer(cfg *Config) *Container {
 		getBusinessTripUseCase,
 		updateBusinessTripUseCase,
 		updateBusinessTripWithAssigneesUseCase,
+		updateBusinessTripStatusUseCase,
 		deleteBusinessTripUseCase,
 		listBusinessTripsUseCase,
 		addAssigneeUseCase,
@@ -398,40 +401,42 @@ func NewContainer(cfg *Config) *Container {
 	)
 
 	return &Container{
-		TransactionHandler:              transactionHandler,
-		MeetingHandler:                  meetingHandler,
-		BusinessTripHandler:             businessTripHandler,
-		AssigneeHandler:                 assigneeHandler,
-		BusinessTripTransactionHandler:  businessTripTransactionHandler,
-		BusinessTripDashboardHandler:    businessTripDashboardHandler,
-		BusinessTripVerificationHandler: businessTripVerificationHandler,
-		WorkPaperItemHandler:            workPaperItemHandler,
-		WorkPaperHandler:                workPaperHandler,
-		WorkPaperSignatureHandler:       workPaperSignatureHandler,
-		VaccineHandler:                  vaccineHandler,
-		ExtractTransactionsUseCase:      extractTransactionsUseCase,
-		GenerateRecapExcelUseCase:       generateRecapExcelUseCase,
-		CreateMeetingUseCase:            createMeetingUseCase,
-		CreateBusinessTripUseCase:       createBusinessTripUseCase,
-		GetBusinessTripUseCase:          getBusinessTripUseCase,
-		UpdateBusinessTripUseCase:       updateBusinessTripUseCase,
-		DeleteBusinessTripUseCase:       deleteBusinessTripUseCase,
-		ListBusinessTripsUseCase:        listBusinessTripsUseCase,
-		AddAssigneeUseCase:              addAssigneeUseCase,
-		AddTransactionUseCase:           addTransactionUseCase,
-		GetBusinessTripSummaryUseCase:   getBusinessTripSummaryUseCase,
-		GetAssigneeSummaryUseCase:       getAssigneeSummaryUseCase,
-		GetDashboardUseCase:             getDashboardUseCase,
-		VerifyBusinessTripUseCase:       verifyBusinessTripUseCase,
-		ListVerificatorsUseCase:         listVerificatorsUseCase,
-		GetAssigneeUseCase:              getAssigneeUseCase,
-		UpdateAssigneeUseCase:           updateAssigneeUseCase,
-		DeleteAssigneeUseCase:           deleteAssigneeUseCase,
-		ListAssigneesUseCase:            listAssigneesUseCase,
-		GetTransactionUseCase:           getTransactionUseCase,
-		UpdateTransactionUseCase:        updateTransactionUseCase,
-		DeleteTransactionUseCase:        deleteTransactionUseCase,
-		ListTransactionsUseCase:         listTransactionsUseCase,
+		TransactionHandler:                     transactionHandler,
+		MeetingHandler:                         meetingHandler,
+		BusinessTripHandler:                    businessTripHandler,
+		AssigneeHandler:                        assigneeHandler,
+		BusinessTripTransactionHandler:         businessTripTransactionHandler,
+		BusinessTripDashboardHandler:           businessTripDashboardHandler,
+		BusinessTripVerificationHandler:        businessTripVerificationHandler,
+		WorkPaperItemHandler:                   workPaperItemHandler,
+		WorkPaperHandler:                       workPaperHandler,
+		WorkPaperSignatureHandler:              workPaperSignatureHandler,
+		VaccineHandler:                         vaccineHandler,
+		ExtractTransactionsUseCase:             extractTransactionsUseCase,
+		GenerateRecapExcelUseCase:              generateRecapExcelUseCase,
+		CreateMeetingUseCase:                   createMeetingUseCase,
+		CreateBusinessTripUseCase:              createBusinessTripUseCase,
+		GetBusinessTripUseCase:                 getBusinessTripUseCase,
+		UpdateBusinessTripUseCase:              updateBusinessTripUseCase,
+		UpdateBusinessTripWithAssigneesUseCase: updateBusinessTripWithAssigneesUseCase,
+		UpdateBusinessTripStatusUseCase:        updateBusinessTripStatusUseCase,
+		DeleteBusinessTripUseCase:              deleteBusinessTripUseCase,
+		ListBusinessTripsUseCase:               listBusinessTripsUseCase,
+		AddAssigneeUseCase:                     addAssigneeUseCase,
+		AddTransactionUseCase:                  addTransactionUseCase,
+		GetBusinessTripSummaryUseCase:          getBusinessTripSummaryUseCase,
+		GetAssigneeSummaryUseCase:              getAssigneeSummaryUseCase,
+		GetDashboardUseCase:                    getDashboardUseCase,
+		VerifyBusinessTripUseCase:              verifyBusinessTripUseCase,
+		ListVerificatorsUseCase:                listVerificatorsUseCase,
+		GetAssigneeUseCase:                     getAssigneeUseCase,
+		UpdateAssigneeUseCase:                  updateAssigneeUseCase,
+		DeleteAssigneeUseCase:                  deleteAssigneeUseCase,
+		ListAssigneesUseCase:                   listAssigneesUseCase,
+		GetTransactionUseCase:                  getTransactionUseCase,
+		UpdateTransactionUseCase:               updateTransactionUseCase,
+		DeleteTransactionUseCase:               deleteTransactionUseCase,
+		ListTransactionsUseCase:                listTransactionsUseCase,
 
 		// Desk Module Use Cases
 		CreateWorkPaperItemUseCase: createWorkPaperItemUseCase,

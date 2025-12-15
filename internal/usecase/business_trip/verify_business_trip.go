@@ -155,17 +155,11 @@ func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusi
 
 		// Update business trip status based on verificator responses
 		newBusinessTripStatus := businessTrip.GetStatus()
-		allApproved := true
 		anyRejected := false
 
 		for _, v := range allVerificators {
 			if v.IsRejected() {
 				anyRejected = true
-				allApproved = false
-				break
-			}
-			if v.IsPending() {
-				allApproved = false
 				break
 			}
 		}
@@ -173,10 +167,9 @@ func (uc *VerifyBusinessTripUseCase) Execute(ctx context.Context, req VerifyBusi
 		if anyRejected {
 			// If any verificator rejected, mark as ongoing (so it can be fixed and resubmitted)
 			newBusinessTripStatus = entity.BusinessTripStatusOngoing
-		} else if allApproved {
-			// If all approved, mark as ongoing (ready for execution)
-			newBusinessTripStatus = entity.BusinessTripStatusOngoing
 		}
+		// If all approved, status stays ready_to_verify
+		// User must manually change to completed via PATCH /status endpoint
 
 		// Update business trip status if changed
 		if newBusinessTripStatus != businessTrip.GetStatus() {

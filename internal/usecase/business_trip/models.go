@@ -828,3 +828,23 @@ type BusinessTripHistoryResponse struct {
 	Notes          string    `json:"notes,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 }
+
+// InvalidEmployeeError represents a single invalid employee entry
+type InvalidEmployeeError struct {
+	Index          int    `json:"index"`           // Index in the assignees array
+	Field          string `json:"field"`           // Field name (e.g., "employee_number")
+	EmployeeNumber string `json:"employee_number"` // The invalid employee number
+	Name           string `json:"name"`            // Assignee name for reference
+	Message        string `json:"message"`         // Error message
+}
+
+// EmployeeValidationError represents a validation error for employee data
+type EmployeeValidationError struct {
+	Message          string                 `json:"message"`
+	InvalidEmployees []InvalidEmployeeError `json:"invalid_employees"`
+}
+
+// Error implements the error interface
+func (e *EmployeeValidationError) Error() string {
+	return e.Message
+}

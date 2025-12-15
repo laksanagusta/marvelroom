@@ -24,7 +24,7 @@ func NewUpdateBusinessTripUseCase(
 	}
 }
 
-func (uc *UpdateBusinessTripUseCase) Execute(ctx context.Context, req UpdateBusinessTripRequest) (*BusinessTripResponse, error) {
+func (uc *UpdateBusinessTripUseCase) Execute(ctx context.Context, req UpdateBusinessTripRequest, authenticatedUser entity.AuthenticatedUser) (*BusinessTripResponse, error) {
 	businessTrip, err := uc.businessTripRepo.GetByID(ctx, req.BusinessTripID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get business trip: %w", err)
@@ -103,6 +103,7 @@ func (uc *UpdateBusinessTripUseCase) Execute(ctx context.Context, req UpdateBusi
 				FieldName:      "status",
 				OldValue:       oldStatus,
 				NewValue:       string(newStatus),
+				ChangedBy:      authenticatedUser.GetFullName(),
 			})
 			if err != nil {
 				return nil, err

@@ -570,7 +570,7 @@ func (g *Generator) generateTableData(f *excelize.File, sheetName string, req Re
 		if err := f.SetCellValue(sheetName, fmt.Sprintf("H%d", currentRow), data.UMUangHarianJmlHari); err != nil {
 			return currentRow, err
 		}
-		if err := f.SetCellValue(sheetName, fmt.Sprintf("J%d", currentRow), data.UMUangHarianPerhari); err != nil {
+		if err := f.SetCellValue(sheetName, fmt.Sprintf("J%d", currentRow), data.UMUangHarianPerhari*80/100); err != nil {
 			return currentRow, err
 		}
 		if err := f.SetCellValue(sheetName, fmt.Sprintf("K%d", currentRow), data.UMUangHarianJumlah); err != nil {

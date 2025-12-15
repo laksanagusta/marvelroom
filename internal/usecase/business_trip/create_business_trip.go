@@ -3,6 +3,7 @@ package business_trip
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -50,6 +51,32 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 	userDataMap, err := uc.userService.GetUserDataByEmployeeIDs(ctx, employeeNumbers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)
+	}
+
+	log.Println("userDataMap", userDataMap)
+
+	// Validate that all employee numbers exist in the API response
+	var invalidEmployees []InvalidEmployeeError
+	for i, assigneeReq := range req.Assignees {
+		if assigneeReq.EmployeeNumber != "" {
+			if _, exists := userDataMap[assigneeReq.EmployeeNumber]; !exists {
+				invalidEmployees = append(invalidEmployees, InvalidEmployeeError{
+					Index:          i,
+					Field:          "employee_number",
+					EmployeeNumber: assigneeReq.EmployeeNumber,
+					Name:           assigneeReq.Name,
+					Message:        fmt.Sprintf("Employee number '%s' not found in identity service", assigneeReq.EmployeeNumber),
+				})
+			}
+		}
+	}
+
+	// If there are invalid employees, return a validation error
+	if len(invalidEmployees) > 0 {
+		return nil, &EmployeeValidationError{
+			Message:          "Some employee numbers were not found in identity service",
+			InvalidEmployees: invalidEmployees,
+		}
 	}
 
 	bt, err := req.ToEntity(authenticatedUser.Organization.ID)

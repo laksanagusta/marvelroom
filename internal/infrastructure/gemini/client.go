@@ -139,7 +139,7 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
           "name": "NAMA_PEMESAN_TRANSAKSI",
           "type": "accommodation | transport | other | allowance",
           "subtype": "hotel | flight | train | taxi | daily_allowance",
-          "amount": number,
+          "amount": number, -> jika dia uang harian maka akan dikali 80%
           "total_night": number,
           "subtotal": number, -> hasil amount*total_night kalo dia accomodation tapi kalo selain itu langsung ambil dari amount aja
 	      "description" : string, -> ini adalah keterangan transaksi ini transaksi apa, misalkan gojek dari alamat1 ke alamat2, kalo hotel jelasin juga hotelnya

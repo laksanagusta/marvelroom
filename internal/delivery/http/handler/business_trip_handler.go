@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/usecase/business_trip"
@@ -15,6 +16,7 @@ type BusinessTripHandler struct {
 	getBusinessTripUseCase                 *business_trip.GetBusinessTripUseCase
 	updateBusinessTripUseCase              *business_trip.UpdateBusinessTripUseCase
 	updateBusinessTripWithAssigneesUseCase *business_trip.UpdateBusinessTripWithAssigneesUseCase
+	updateBusinessTripStatusUseCase        *business_trip.UpdateBusinessTripStatusUseCase
 	deleteBusinessTripUseCase              *business_trip.DeleteBusinessTripUseCase
 	listBusinessTripsUseCase               *business_trip.ListBusinessTripsUseCase
 	addAssigneeUseCase                     *business_trip.AddAssigneeUseCase
@@ -29,6 +31,7 @@ func NewBusinessTripHandler(
 	getBusinessTripUseCase *business_trip.GetBusinessTripUseCase,
 	updateBusinessTripUseCase *business_trip.UpdateBusinessTripUseCase,
 	updateBusinessTripWithAssigneesUseCase *business_trip.UpdateBusinessTripWithAssigneesUseCase,
+	updateBusinessTripStatusUseCase *business_trip.UpdateBusinessTripStatusUseCase,
 	deleteBusinessTripUseCase *business_trip.DeleteBusinessTripUseCase,
 	listBusinessTripsUseCase *business_trip.ListBusinessTripsUseCase,
 	addAssigneeUseCase *business_trip.AddAssigneeUseCase,
@@ -42,6 +45,7 @@ func NewBusinessTripHandler(
 		getBusinessTripUseCase:                 getBusinessTripUseCase,
 		updateBusinessTripUseCase:              updateBusinessTripUseCase,
 		updateBusinessTripWithAssigneesUseCase: updateBusinessTripWithAssigneesUseCase,
+		updateBusinessTripStatusUseCase:        updateBusinessTripStatusUseCase,
 		deleteBusinessTripUseCase:              deleteBusinessTripUseCase,
 		listBusinessTripsUseCase:               listBusinessTripsUseCase,
 		addAssigneeUseCase:                     addAssigneeUseCase,
@@ -76,6 +80,14 @@ func (h *BusinessTripHandler) CreateBusinessTrip(c *fiber.Ctx) error {
 	// Call usecase directly
 	response, err := h.createBusinessTripUseCase.Execute(context.Background(), req, *user)
 	if err != nil {
+		// Check if it's an employee validation error
+		if empErr, ok := err.(*business_trip.EmployeeValidationError); ok {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":             empErr.Message,
+				"error_type":        "employee_validation_error",
+				"invalid_employees": empErr.InvalidEmployees,
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to create business trip",
 			"details": err.Error(),
@@ -146,8 +158,10 @@ func (h *BusinessTripHandler) UpdateBusinessTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	user := c.Locals("authenticatedUser").(*entity.AuthenticatedUser)
+
 	// Call usecase directly
-	_, err := h.updateBusinessTripUseCase.Execute(context.Background(), req)
+	_, err := h.updateBusinessTripUseCase.Execute(context.Background(), req, *user)
 	if err != nil {
 		if err != nil && (err.Error() == "business trip not found" || err.Error() == "entity.ErrBusinessTripNotFound") {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -203,12 +217,20 @@ func (h *BusinessTripHandler) UpdateBusinessTripWithAssignees(c *fiber.Ctx) erro
 	// Call usecase directly
 	_, err := h.updateBusinessTripWithAssigneesUseCase.Execute(context.Background(), req, *user)
 	if err != nil {
-		if err != nil && (err.Error() == "business trip not found" || err.Error() == "entity.ErrBusinessTripNotFound") {
+		// Check if it's an employee validation error
+		if empErr, ok := err.(*business_trip.EmployeeValidationError); ok {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":             empErr.Message,
+				"error_type":        "employee_validation_error",
+				"invalid_employees": empErr.InvalidEmployees,
+			})
+		}
+		if err.Error() == "business trip not found" || err.Error() == "entity.ErrBusinessTripNotFound" {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Business trip not found",
 			})
 		}
-		if err != nil && err.Error() == "invalid date range" {
+		if err.Error() == "invalid date range" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "Invalid date range",
 				"details": err.Error(),
@@ -221,6 +243,76 @@ func (h *BusinessTripHandler) UpdateBusinessTripWithAssignees(c *fiber.Ctx) erro
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+// UpdateBusinessTripStatus updates only the status of a business trip
+// This is a dedicated endpoint for status updates with strict transition validation
+// Status flow:
+// - draft -> canceled or ongoing
+// - ongoing -> canceled or ready_to_verify
+// - ready_to_verify -> completed or canceled
+// - canceled and completed are final states (cannot be changed)
+func (h *BusinessTripHandler) UpdateBusinessTripStatus(c *fiber.Ctx) error {
+	tripId := c.Params("tripId")
+	if tripId == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Business trip ID is required",
+		})
+	}
+
+	var req business_trip.UpdateBusinessTripStatusRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	// Set business trip ID from path parameter
+	req.BusinessTripID = tripId
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+	}
+
+	user := c.Locals("authenticatedUser").(*entity.AuthenticatedUser)
+
+	// Call usecase
+	response, err := h.updateBusinessTripStatusUseCase.Execute(context.Background(), req, *user)
+	if err != nil {
+		// Check for specific error types
+		if errors.Is(err, entity.ErrBusinessTripNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Business trip not found",
+			})
+		}
+		if errors.Is(err, business_trip.ErrStatusTransitionNotAllowed) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":   "Status transition not allowed",
+				"details": err.Error(),
+			})
+		}
+		if errors.Is(err, business_trip.ErrFinalStatusCannotBeChanged) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":   "Status cannot be changed",
+				"details": err.Error(),
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to update business trip status",
+			"details": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Business trip status updated successfully",
+		"data":    response,
+	})
 }
 
 // DeleteBusinessTrip deletes a business trip

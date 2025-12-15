@@ -60,6 +60,34 @@ func (uc *UpdateBusinessTripWithAssigneesUseCase) Execute(ctx context.Context, r
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)
 	}
 
+	// Validate that all employee numbers exist in the API response
+	var invalidEmployees []InvalidEmployeeError
+	for i, assigneeReq := range req.Assignees {
+		employeeNumber := assigneeReq.EmployeeNumber
+		if employeeNumber == "" {
+			employeeNumber = assigneeReq.EmployeeID // fallback
+		}
+		if employeeNumber != "" {
+			if _, exists := userDataMap[employeeNumber]; !exists {
+				invalidEmployees = append(invalidEmployees, InvalidEmployeeError{
+					Index:          i,
+					Field:          "employee_number",
+					EmployeeNumber: employeeNumber,
+					Name:           assigneeReq.Name,
+					Message:        fmt.Sprintf("Employee number '%s' not found in identity service", employeeNumber),
+				})
+			}
+		}
+	}
+
+	// If there are invalid employees, return a validation error
+	if len(invalidEmployees) > 0 {
+		return nil, &EmployeeValidationError{
+			Message:          "Some employee numbers were not found in identity service",
+			InvalidEmployees: invalidEmployees,
+		}
+	}
+
 	bt, err := req.ToEntity(req.BusinessTripID, authenticatedUser.Organization.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert request to entity: %w", err)
