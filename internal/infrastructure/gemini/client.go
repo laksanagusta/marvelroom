@@ -8,21 +8,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"sandbox/internal/domain/repository"
+	"sandbox/internal/infrastructure/llm"
 	transactionDTO "sandbox/internal/usecase/transaction"
 )
 
-const (
-	geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-)
+// geminiModels uses the shared model list from llm package
+var geminiModels = llm.GeminiModels
 
 type Client struct {
-	apiKey     string
-	httpClient *http.Client
+	apiKey       string
+	openAIAPIKey string
+	httpClient   *http.Client
 }
 
 func NewClient(apiKey string) *Client {
@@ -32,6 +34,22 @@ func NewClient(apiKey string) *Client {
 			Timeout: 300 * time.Second,
 		},
 	}
+}
+
+// NewClientWithFallback creates a new client with OpenAI fallback support
+func NewClientWithFallback(geminiAPIKey, openAIAPIKey string) *Client {
+	return &Client{
+		apiKey:       geminiAPIKey,
+		openAIAPIKey: openAIAPIKey,
+		httpClient: &http.Client{
+			Timeout: 300 * time.Second,
+		},
+	}
+}
+
+// SetOpenAIAPIKey sets the OpenAI API key for fallback
+func (c *Client) SetOpenAIAPIKey(apiKey string) {
+	c.openAIAPIKey = apiKey
 }
 
 func (c *Client) ExtractFromDocuments(ctx context.Context, documents []repository.Document, promptType string) (interface{}, error) {
@@ -48,6 +66,42 @@ func (c *Client) ExtractFromDocuments(ctx context.Context, documents []repositor
 	}
 
 	prompt := c.definePrompt(promptType)
+
+	// Try each Gemini model in order
+	var lastError error
+	for _, model := range geminiModels {
+		log.Printf("[GeminiClient] Trying model: %s", model)
+
+		result, err := c.tryGeminiModel(ctx, documents, prompt, model)
+		if err != nil {
+			log.Printf("[GeminiClient] Model %s failed: %v", model, err)
+			lastError = err
+			continue
+		}
+
+		log.Printf("[GeminiClient] Successfully used model: %s", model)
+		return result, nil
+	}
+
+	// If all Gemini models failed, try OpenAI GPT-4o-mini as last resort
+	if c.openAIAPIKey != "" {
+		log.Printf("[GeminiClient] All Gemini models failed, falling back to GPT-4o-mini")
+
+		result, err := c.tryOpenAI(ctx, documents, prompt)
+		if err != nil {
+			log.Printf("[GeminiClient] GPT-4o-mini also failed: %v", err)
+			return nil, fmt.Errorf("all LLM models failed (last error from GPT-4o-mini: %w)", err)
+		}
+
+		log.Printf("[GeminiClient] Successfully used GPT-4o-mini as fallback")
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("all Gemini models failed (OpenAI fallback not configured): %w", lastError)
+}
+
+// tryGeminiModel attempts to use a specific Gemini model
+func (c *Client) tryGeminiModel(ctx context.Context, documents []repository.Document, prompt string, model string) (interface{}, error) {
 	parts := []map[string]interface{}{
 		{"text": prompt},
 	}
@@ -75,7 +129,8 @@ func (c *Client) ExtractFromDocuments(ctx context.Context, documents []repositor
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.getAPIURL(), bytes.NewBuffer(jsonBody))
+	apiURL := c.getGeminiModelURL(model)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -103,8 +158,115 @@ func (c *Client) ExtractFromDocuments(ctx context.Context, documents []repositor
 	return c.parseResponse(bodyResp)
 }
 
-func (c *Client) getAPIURL() string {
-	return fmt.Sprintf("%s?key=%s", geminiAPIURL, c.apiKey)
+// tryOpenAI attempts to use OpenAI GPT-4o-mini as fallback
+func (c *Client) tryOpenAI(ctx context.Context, documents []repository.Document, prompt string) (interface{}, error) {
+	// Build content array for OpenAI
+	content := []map[string]interface{}{
+		{"type": "text", "text": prompt},
+	}
+
+	// Add documents as images for vision API (only image types)
+	for _, doc := range documents {
+		if strings.HasPrefix(doc.MimeType, "image/") {
+			base64Content := base64.StdEncoding.EncodeToString(doc.Content)
+			dataURL := fmt.Sprintf("data:%s;base64,%s", doc.MimeType, base64Content)
+			content = append(content, map[string]interface{}{
+				"type": "image_url",
+				"image_url": map[string]string{
+					"url": dataURL,
+				},
+			})
+		} else {
+			// For non-image files, add a note
+			content = append(content, map[string]interface{}{
+				"type": "text",
+				"text": fmt.Sprintf("\n[Dokumen: %s (tipe: %s, ukuran: %d bytes)]", doc.MimeType, doc.MimeType, len(doc.Content)),
+			})
+		}
+	}
+
+	body := map[string]interface{}{
+		"model": "gpt-4o-mini",
+		"messages": []map[string]interface{}{
+			{
+				"role":    "user",
+				"content": content,
+			},
+		},
+		"max_tokens": 4096,
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal OpenAI request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", llm.OpenAIAPIURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OpenAI request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.openAIAPIKey))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call OpenAI API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read OpenAI response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(bodyResp))
+	}
+
+	return c.parseOpenAIResponse(bodyResp)
+}
+
+// parseOpenAIResponse parses the OpenAI response format
+func (c *Client) parseOpenAIResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO, error) {
+	var openAIResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+
+	if err := json.Unmarshal(bodyResp, &openAIResp); err != nil {
+		return nil, fmt.Errorf("failed to parse OpenAI response: %w", err)
+	}
+
+	if openAIResp.Error != nil {
+		return nil, fmt.Errorf("OpenAI API error: %s", openAIResp.Error.Message)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return nil, errors.New("empty response from OpenAI API")
+	}
+
+	rawText := openAIResp.Choices[0].Message.Content
+	cleanJSON := c.cleanJSON(rawText)
+
+	var geminiRawReport geminiReportResponse
+	if err := json.Unmarshal([]byte(cleanJSON), &geminiRawReport); err != nil {
+		return nil, fmt.Errorf("failed to parse report content from OpenAI: %w (raw: %s)", err, cleanJSON)
+	}
+
+	// Reuse the same conversion logic as parseResponse
+	return c.convertToRecapReport(&geminiRawReport), nil
+}
+
+// getGeminiModelURL returns the API URL for a specific Gemini model
+func (c *Client) getGeminiModelURL(model string) string {
+	return fmt.Sprintf("%s/%s:generateContent?key=%s", llm.GeminiAPIBaseURL, model, c.apiKey)
 }
 
 func (c *Client) definePrompt(promptType string) string {
@@ -127,6 +289,7 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
   "spdDate": "YYYY-MM-DD", -> ambil dari file surat tugas
   "departureDate": "YYYY-MM-DD", -> ambil dari file surat tugas
   "returnDate": "YYYY-MM-DD", -> ambil dari file surat tugas
+  "assignmentLetterNumber": "NOMOR_SURAT_TUGAS", -> ambil nomor surat tugas dari file surat tugas (biasanya ada di bagian atas dokumen atau di header surat)
   "assignees": [
     {
       "name": "NAMA_PEGAWAI", -> ambil dari file surat tugas
@@ -140,8 +303,8 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
           "type": "accommodation | transport | other | allowance",
           "subtype": "hotel | flight | train | taxi | daily_allowance",
           "amount": number, -> jika dia uang harian maka akan dikali 80%
-          "total_night": number,
-          "subtotal": number, -> hasil amount*total_night kalo dia accomodation tapi kalo selain itu langsung ambil dari amount aja
+          "total_night": number, -> jika dia subtypenya daily_allowance/hotel, jika hotel maka akan dihitung total malamnya, jika daily_allowance maka akan dihitung total hari
+          "subtotal": number, -> hasil amount*total_night kalo dia subtypenya daily_allowance/hotel tapi kalo selain itu langsung ambil dari amount aja
 	      "description" : string, -> ini adalah keterangan transaksi ini transaksi apa, misalkan gojek dari alamat1 ke alamat2, kalo hotel jelasin juga hotelnya
 	      "transport_detail" : string, -> ini terisi hanya jika dia transport darat ya (pesawat tidak termasuk) 1.jika dia dari bandara soetta atau tujuannya ke bandara soetta maka valuenya menjadi "transport_asal" atau kalau dia transportasinya di jakarta juga masuk trasnport asal 2.jika mengandung bandara lain selain soetta maka valuenya adalah "transport_daerah"
 	      "is_valid": boolean -> PENTING: Validasi keaslian dokumen transaksi ini (lihat instruksi validasi keaslian dokumen di bawah)
@@ -245,6 +408,7 @@ Ekstrak setiap transaksi dan tampilkan dalam format JSON valid berikut ini:
   "spdDate": "YYYY-MM-DD", -> ambil dari file surat tugas
   "departureDate": "YYYY-MM-DD", -> ambil dari file surat tugas
   "returnDate": "YYYY-MM-DD", -> ambil dari file surat tugas
+  "assignmentLetterNumber": "NOMOR_SURAT_TUGAS", -> ambil nomor surat tugas dari file surat tugas (biasanya ada di bagian atas dokumen atau di header surat)
   "assignees": [
     {
       "name": "NAMA_PEGAWAI", -> ambil dari file surat tugas
@@ -286,12 +450,45 @@ func (c *Client) ExtractVaccineRecommendations(ctx context.Context, htmlContent 
 	}
 
 	prompt := c.getVaccineExtractionPrompt()
+	fullPrompt := prompt + fmt.Sprintf("\n\nHTML Content to analyze:\n\n%s", htmlContent)
 
+	// Try each Gemini model in order
+	var lastError error
+	for _, model := range geminiModels {
+		log.Printf("[GeminiClient] ExtractVaccineRecommendations trying model: %s", model)
+
+		result, err := c.tryGeminiVaccineModel(ctx, fullPrompt, model)
+		if err != nil {
+			log.Printf("[GeminiClient] Model %s failed for vaccine extraction: %v", model, err)
+			lastError = err
+			continue
+		}
+
+		log.Printf("[GeminiClient] Successfully used model %s for vaccine extraction", model)
+		return result, nil
+	}
+
+	// If all Gemini models failed, try OpenAI GPT-4o-mini as last resort
+	if c.openAIAPIKey != "" {
+		log.Printf("[GeminiClient] All Gemini models failed for vaccine extraction, falling back to GPT-4o-mini")
+
+		result, err := c.tryOpenAIVaccine(ctx, fullPrompt)
+		if err != nil {
+			log.Printf("[GeminiClient] GPT-4o-mini also failed for vaccine extraction: %v", err)
+			return nil, fmt.Errorf("all LLM models failed for vaccine extraction (last error from GPT-4o-mini: %w)", err)
+		}
+
+		log.Printf("[GeminiClient] Successfully used GPT-4o-mini as fallback for vaccine extraction")
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("all Gemini models failed for vaccine extraction (OpenAI fallback not configured): %w", lastError)
+}
+
+// tryGeminiVaccineModel attempts vaccine extraction with a specific Gemini model
+func (c *Client) tryGeminiVaccineModel(ctx context.Context, fullPrompt string, model string) (map[string]interface{}, error) {
 	parts := []map[string]interface{}{
-		{"text": prompt},
-		{
-			"text": fmt.Sprintf("HTML Content to analyze:\n\n%s", htmlContent),
-		},
+		{"text": fullPrompt},
 	}
 
 	body := map[string]interface{}{
@@ -307,7 +504,8 @@ func (c *Client) ExtractVaccineRecommendations(ctx context.Context, htmlContent 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.getAPIURL(), bytes.NewBuffer(jsonBody))
+	apiURL := c.getGeminiModelURL(model)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -332,6 +530,86 @@ func (c *Client) ExtractVaccineRecommendations(ctx context.Context, htmlContent 
 	return c.parseVaccineResponse(bodyResp)
 }
 
+// tryOpenAIVaccine attempts vaccine extraction with OpenAI GPT-4o-mini
+func (c *Client) tryOpenAIVaccine(ctx context.Context, fullPrompt string) (map[string]interface{}, error) {
+	body := map[string]interface{}{
+		"model": "gpt-4o-mini",
+		"messages": []map[string]interface{}{
+			{
+				"role":    "user",
+				"content": fullPrompt,
+			},
+		},
+		"max_tokens": 4096,
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal OpenAI request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", llm.OpenAIAPIURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OpenAI request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.openAIAPIKey))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call OpenAI API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read OpenAI response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(bodyResp))
+	}
+
+	return c.parseOpenAIVaccineResponse(bodyResp)
+}
+
+// parseOpenAIVaccineResponse parses OpenAI response for vaccine extraction
+func (c *Client) parseOpenAIVaccineResponse(bodyResp []byte) (map[string]interface{}, error) {
+	var openAIResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+
+	if err := json.Unmarshal(bodyResp, &openAIResp); err != nil {
+		return nil, fmt.Errorf("failed to parse OpenAI response: %w", err)
+	}
+
+	if openAIResp.Error != nil {
+		return nil, fmt.Errorf("OpenAI API error: %s", openAIResp.Error.Message)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return nil, errors.New("empty response from OpenAI API")
+	}
+
+	rawText := openAIResp.Choices[0].Message.Content
+	cleanJSON := c.cleanJSON(rawText)
+
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(cleanJSON), &result); err != nil {
+		return nil, fmt.Errorf("failed to parse vaccine JSON content from OpenAI: %w (raw: %s)", err, cleanJSON)
+	}
+
+	return result, nil
+}
+
 func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO, error) {
 	var geminiAPIResponse geminiResponse
 	if err := json.Unmarshal(bodyResp, &geminiAPIResponse); err != nil {
@@ -350,6 +628,11 @@ func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO,
 		return nil, fmt.Errorf("failed to parse Gemini report content: %w (raw: %s)", err, cleanJSON)
 	}
 
+	return c.convertToRecapReport(&geminiRawReport), nil
+}
+
+// convertToRecapReport converts geminiReportResponse to RecapReportDTO
+func (c *Client) convertToRecapReport(geminiRawReport *geminiReportResponse) *transactionDTO.RecapReportDTO {
 	geminiRawReport.ReceiptSignatureDate = time.Now().Format("2006-01-02")
 
 	assignees := make([]transactionDTO.AssigneeDTO, 0, len(geminiRawReport.Assignees))
@@ -388,16 +671,17 @@ func (c *Client) parseResponse(bodyResp []byte) (*transactionDTO.RecapReportDTO,
 	}
 
 	return &transactionDTO.RecapReportDTO{
-		StartDate:            geminiRawReport.StartDate,
-		EndDate:              geminiRawReport.EndDate,
-		ActivityPurpose:      geminiRawReport.ActivityPurpose,
-		DestinationCity:      geminiRawReport.DestinationCity,
-		SpdDate:              geminiRawReport.SpdDate,
-		DepartureDate:        geminiRawReport.DepartureDate,
-		ReturnDate:           geminiRawReport.ReturnDate,
-		ReceiptSignatureDate: geminiRawReport.ReceiptSignatureDate,
-		Assignees:            assignees,
-	}, nil
+		StartDate:              geminiRawReport.StartDate,
+		EndDate:                geminiRawReport.EndDate,
+		ActivityPurpose:        geminiRawReport.ActivityPurpose,
+		DestinationCity:        geminiRawReport.DestinationCity,
+		SpdDate:                geminiRawReport.SpdDate,
+		DepartureDate:          geminiRawReport.DepartureDate,
+		ReturnDate:             geminiRawReport.ReturnDate,
+		AssignmentLetterNumber: geminiRawReport.AssignmentLetterNumber,
+		ReceiptSignatureDate:   geminiRawReport.ReceiptSignatureDate,
+		Assignees:              assignees,
+	}
 }
 
 func (c *Client) getVaccineExtractionPrompt() string {
@@ -494,15 +778,16 @@ type geminiResponse struct {
 }
 
 type geminiReportResponse struct {
-	StartDate            string                `json:"startDate"`
-	EndDate              string                `json:"endDate"`
-	ActivityPurpose      string                `json:"activityPurpose"`
-	DestinationCity      string                `json:"destinationCity"`
-	SpdDate              string                `json:"spdDate"`
-	DepartureDate        string                `json:"departureDate"`
-	ReturnDate           string                `json:"returnDate"`
-	ReceiptSignatureDate string                `json:"receiptSignatureDate"`
-	Assignees            []rawAssigneeResponse `json:"assignees"`
+	StartDate              string                `json:"startDate"`
+	EndDate                string                `json:"endDate"`
+	ActivityPurpose        string                `json:"activityPurpose"`
+	DestinationCity        string                `json:"destinationCity"`
+	SpdDate                string                `json:"spdDate"`
+	DepartureDate          string                `json:"departureDate"`
+	ReturnDate             string                `json:"returnDate"`
+	AssignmentLetterNumber string                `json:"assignmentLetterNumber"`
+	ReceiptSignatureDate   string                `json:"receiptSignatureDate"`
+	Assignees              []rawAssigneeResponse `json:"assignees"`
 }
 
 type rawAssigneeResponse struct {

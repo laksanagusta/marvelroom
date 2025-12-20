@@ -29,22 +29,23 @@ const (
 
 // BusinessTrip represents a business trip entity
 type BusinessTrip struct {
-	ID                 string             `db:"id"`
-	OrganizationID     uuid.UUID          `db:"organization_id"`
-	BusinessTripNumber sql.NullString     `db:"business_trip_number"`
-	StartDate          time.Time          `db:"start_date"`
-	EndDate            time.Time          `db:"end_date"`
-	ActivityPurpose    string             `db:"activity_purpose"`
-	DestinationCity    string             `db:"destination_city"`
-	SPDDate            time.Time          `db:"spd_date"`
-	DepartureDate      time.Time          `db:"departure_date"`
-	ReturnDate         time.Time          `db:"return_date"`
-	Status             BusinessTripStatus `db:"status"`
-	DocumentLink       sql.NullString     `db:"document_link"`
-	Assignees          []*Assignee        `db:"-"`
-	Verificators       []*Verificator     `db:"-"`
-	CreatedAt          time.Time          `db:"created_at"`
-	UpdatedAt          time.Time          `db:"updated_at"`
+	ID                     string             `db:"id"`
+	OrganizationID         uuid.UUID          `db:"organization_id"`
+	BusinessTripNumber     sql.NullString     `db:"business_trip_number"`
+	AssignmentLetterNumber sql.NullString     `db:"assignment_letter_number"`
+	StartDate              time.Time          `db:"start_date"`
+	EndDate                time.Time          `db:"end_date"`
+	ActivityPurpose        string             `db:"activity_purpose"`
+	DestinationCity        string             `db:"destination_city"`
+	SPDDate                time.Time          `db:"spd_date"`
+	DepartureDate          time.Time          `db:"departure_date"`
+	ReturnDate             time.Time          `db:"return_date"`
+	Status                 BusinessTripStatus `db:"status"`
+	DocumentLink           sql.NullString     `db:"document_link"`
+	Assignees              []*Assignee        `db:"-"`
+	Verificators           []*Verificator     `db:"-"`
+	CreatedAt              time.Time          `db:"created_at"`
+	UpdatedAt              time.Time          `db:"updated_at"`
 }
 
 // Assignee represents an employee assigned to a business trip
@@ -350,7 +351,7 @@ func NewTransaction(name string, txType TransactionType, subtype TransactionSubt
 	}
 
 	// Calculate subtotal if not provided
-	if txType == TransactionTypeAccommodation && totalNight != nil && *totalNight > 0 {
+	if totalNight != nil && *totalNight > 0 {
 		subtotal = amount * float64(*totalNight)
 	} else {
 		subtotal = amount
@@ -532,6 +533,19 @@ func (bt *BusinessTrip) GetBusinessTripNumber() string {
 		return bt.BusinessTripNumber.String
 	}
 	return ""
+}
+
+func (bt *BusinessTrip) GetAssignmentLetterNumber() string {
+	if bt.AssignmentLetterNumber.Valid {
+		return bt.AssignmentLetterNumber.String
+	}
+	return ""
+}
+
+// SetAssignmentLetterNumber sets the assignment letter number
+func (bt *BusinessTrip) SetAssignmentLetterNumber(number string) {
+	bt.AssignmentLetterNumber = sql.NullString{String: number, Valid: number != ""}
+	bt.UpdatedAt = time.Now()
 }
 func (bt *BusinessTrip) GetStartDate() time.Time       { return bt.StartDate }
 func (bt *BusinessTrip) GetEndDate() time.Time         { return bt.EndDate }

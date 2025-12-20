@@ -2,7 +2,6 @@ package excel
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -426,9 +425,6 @@ func (g *Generator) generateTableData(f *excelize.File, sheetName string, req Re
 	constUangHarianPerhari := int32(688000)
 	constUangHarianJumlah := constUangHarianJmlHari * constUangHarianPerhari
 
-	jsn, _ := json.Marshal(req)
-	fmt.Println(string(jsn))
-
 	for _, assignee := range req.Assignees {
 		// Use employee_number (NIP) as the primary identifier, fallback to employee_id
 		employeeIdentifier := assignee.EmployeeNumber
@@ -444,7 +440,7 @@ func (g *Generator) generateTableData(f *excelize.File, sheetName string, req Re
 		if !exists {
 			data = &PersonRecap{
 				Name:                assignee.Name,
-				NIP:                 employeeIdentifier, // Use employee_number (NIP) for NIP field
+				NIP:                 employeeIdentifier,
 				Jabatan:             assignee.Position,
 				Gol:                 assignee.Rank,
 				Tujuan:              req.DestinationCity,
@@ -676,7 +672,7 @@ func (g *Generator) generateTableData(f *excelize.File, sheetName string, req Re
 				return currentRow, err
 			}
 
-			if err := f.SetCellStyle(sheetName, fmt.Sprintf("H%d", currentRow), fmt.Sprintf("P%d", currentRow), numberStyle); err != nil {
+			if err := f.SetCellStyle(sheetName, fmt.Sprintf("H%d", currentRow), fmt.Sprintf("W%d", currentRow), numberStyle); err != nil {
 				return currentRow, err
 			}
 			if err := f.SetCellStyle(sheetName, fmt.Sprintf("T%d", currentRow), fmt.Sprintf("U%d", currentRow), numberStyle); err != nil {
@@ -964,13 +960,13 @@ func (g *Generator) generateSignatureRow(f *excelize.File, sheetName string, cur
 	}
 
 	totalRow += 1
-	if err := f.SetCellValue(sheetName, fmt.Sprintf("B%d", totalRow), commitmentOfficerId); err != nil {
+	if err := f.SetCellValue(sheetName, fmt.Sprintf("B%d", totalRow), fmt.Sprintf("NIP %s", commitmentOfficerId)); err != nil {
 		return err
 	}
-	if err := f.SetCellValue(sheetName, fmt.Sprintf("D%d", totalRow), expenditureTreasurerId); err != nil {
+	if err := f.SetCellValue(sheetName, fmt.Sprintf("D%d", totalRow), fmt.Sprintf("NIP %s", expenditureTreasurerId)); err != nil {
 		return err
 	}
-	if err := f.SetCellValue(sheetName, fmt.Sprintf("I%d", totalRow), payerId); err != nil {
+	if err := f.SetCellValue(sheetName, fmt.Sprintf("I%d", totalRow), fmt.Sprintf("NIP %s", payerId)); err != nil {
 		return err
 	}
 
@@ -980,7 +976,7 @@ func (g *Generator) generateSignatureRow(f *excelize.File, sheetName string, cur
 			return err
 		}
 	} else {
-		err := f.SetCellStyle(sheetName, fmt.Sprintf("B%d", totalRow), fmt.Sprintf("L%d", totalRow), nameStyle)
+		err := f.SetCellStyle(sheetName, fmt.Sprintf("B%d", totalRow-1), fmt.Sprintf("L%d", totalRow-1), nameStyle)
 		if err != nil {
 			return err
 		}
@@ -1807,7 +1803,7 @@ func (g *Generator) generateKw(f *excelize.File, sheetName string, req RecapRepo
 		return err
 	}
 
-	if err := f.SetCellFormula(sheetName, "A61", `="Berdasarkan Surat Perjalanan Dinas ( SPD ) Nomor "&VLOOKUP($T$1,'PEMANTAUAN REKAP UANG MUKA'!$A$11:$AJ$100,22,FALSE)`); err != nil {
+	if err := f.SetCellFormula(sheetName, "A61", `="Berdasarkan Surat Perjalanan Dinas ( SPD ) Nomor "&VLOOKUP($T$1,'PEMANTAUAN REKAP UANG MUKA'!$A$11:$AJ$100,27,FALSE)`); err != nil {
 		return err
 	}
 	if err := f.SetCellValue(sheetName, "N61", fmt.Sprintf("tanggal %s", req.SpdDate)); err != nil {

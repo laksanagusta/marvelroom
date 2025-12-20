@@ -317,7 +317,7 @@ func (h *BusinessTripHandler) UpdateBusinessTripStatus(c *fiber.Ctx) error {
 
 // DeleteBusinessTrip deletes a business trip
 func (h *BusinessTripHandler) DeleteBusinessTrip(c *fiber.Ctx) error {
-	id := c.Params("id")
+	id := c.Params("tripId")
 	if id == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Business trip ID is required",

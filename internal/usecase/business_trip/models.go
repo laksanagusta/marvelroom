@@ -21,18 +21,19 @@ func validateDateFormat(dateStr string) bool {
 
 // BusinessTripRequest represents the request body for creating/updating a business trip
 type BusinessTripRequest struct {
-	BusinessTripNumber string               `json:"business_trip_number,omitempty"`
-	StartDate          string               `json:"start_date"`
-	EndDate            string               `json:"end_date"`
-	ActivityPurpose    string               `json:"activity_purpose"`
-	DestinationCity    string               `json:"destination_city"`
-	SPDDate            string               `json:"spd_date"`
-	DepartureDate      string               `json:"departure_date"`
-	ReturnDate         string               `json:"return_date"`
-	Status             string               `json:"status"`
-	DocumentLink       string               `json:"document_link"`
-	Verificators       []VerificatorRequest `json:"verificators"`
-	Assignees          []AssigneeRequest    `json:"assignees"`
+	BusinessTripNumber     string               `json:"business_trip_number,omitempty"`
+	AssignmentLetterNumber string               `json:"assignment_letter_number,omitempty"`
+	StartDate              string               `json:"start_date"`
+	EndDate                string               `json:"end_date"`
+	ActivityPurpose        string               `json:"activity_purpose"`
+	DestinationCity        string               `json:"destination_city"`
+	SPDDate                string               `json:"spd_date"`
+	DepartureDate          string               `json:"departure_date"`
+	ReturnDate             string               `json:"return_date"`
+	Status                 string               `json:"status"`
+	DocumentLink           string               `json:"document_link"`
+	Verificators           []VerificatorRequest `json:"verificators"`
+	Assignees              []AssigneeRequest    `json:"assignees"`
 }
 
 func (r BusinessTripRequest) Validate() error {
@@ -140,6 +141,11 @@ func (r BusinessTripRequest) ToEntity(organizationID uuid.UUID) (*entity.Busines
 	// Set document link
 	if r.DocumentLink != "" {
 		bt.UpdateDocumentLink(r.DocumentLink)
+	}
+
+	// Set assignment letter number
+	if r.AssignmentLetterNumber != "" {
+		bt.SetAssignmentLetterNumber(r.AssignmentLetterNumber)
 	}
 
 	// Add verificators
@@ -325,19 +331,20 @@ type UpdateBusinessTripRequest struct {
 
 // UpdateBusinessTripWithAssigneesRequest represents the request body for updating a business trip with full replace of assignees and transactions
 type UpdateBusinessTripWithAssigneesRequest struct {
-	BusinessTripID     string               `params:"tripId" json:"tripId"`
-	BusinessTripNumber string               `json:"business_trip_number"`
-	StartDate          string               `json:"start_date"`
-	EndDate            string               `json:"end_date"`
-	ActivityPurpose    string               `json:"activity_purpose"`
-	DestinationCity    string               `json:"destination_city"`
-	SPDDate            string               `json:"spd_date"`
-	DepartureDate      string               `json:"departure_date"`
-	ReturnDate         string               `json:"return_date"`
-	Status             string               `json:"status"`
-	DocumentLink       string               `json:"document_link"`
-	Verificators       []VerificatorRequest `json:"verificators"`
-	Assignees          []AssigneeRequest    `json:"assignees"`
+	BusinessTripID         string               `params:"tripId" json:"tripId"`
+	BusinessTripNumber     string               `json:"business_trip_number"`
+	AssignmentLetterNumber string               `json:"assignment_letter_number"`
+	StartDate              string               `json:"start_date"`
+	EndDate                string               `json:"end_date"`
+	ActivityPurpose        string               `json:"activity_purpose"`
+	DestinationCity        string               `json:"destination_city"`
+	SPDDate                string               `json:"spd_date"`
+	DepartureDate          string               `json:"departure_date"`
+	ReturnDate             string               `json:"return_date"`
+	Status                 string               `json:"status"`
+	DocumentLink           string               `json:"document_link"`
+	Verificators           []VerificatorRequest `json:"verificators"`
+	Assignees              []AssigneeRequest    `json:"assignees"`
 }
 
 func (r UpdateBusinessTripRequest) Validate() error {
@@ -488,6 +495,11 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string, 
 		bt.UpdateDocumentLink(r.DocumentLink)
 	}
 
+	// Set assignment letter number
+	if r.AssignmentLetterNumber != "" {
+		bt.SetAssignmentLetterNumber(r.AssignmentLetterNumber)
+	}
+
 	// Set status if provided (must be valid status)
 	if r.Status != "" {
 		status := entity.BusinessTripStatus(r.Status)
@@ -552,22 +564,23 @@ func (r UpdateBusinessTripWithAssigneesRequest) ToEntity(businessTripID string, 
 
 // BusinessTripResponse represents the response body for a business trip
 type BusinessTripResponse struct {
-	ID                 string                `json:"id"`
-	BusinessTripNumber string                `json:"business_trip_number"`
-	StartDate          string                `json:"start_date"`
-	EndDate            string                `json:"end_date"`
-	ActivityPurpose    string                `json:"activity_purpose"`
-	DestinationCity    string                `json:"destination_city"`
-	SPDDate            string                `json:"spd_date"`
-	DepartureDate      string                `json:"departure_date"`
-	ReturnDate         string                `json:"return_date"`
-	Status             string                `json:"status"`
-	DocumentLink       string                `json:"document_link"`
-	TotalCost          float64               `json:"total_cost"`
-	Verificators       []VerificatorResponse `json:"verificators"`
-	Assignees          []AssigneeResponse    `json:"assignees"`
-	CreatedAt          string                `json:"created_at"`
-	UpdatedAt          string                `json:"updated_at"`
+	ID                     string                `json:"id"`
+	BusinessTripNumber     string                `json:"business_trip_number"`
+	AssignmentLetterNumber string                `json:"assignment_letter_number"`
+	StartDate              string                `json:"start_date"`
+	EndDate                string                `json:"end_date"`
+	ActivityPurpose        string                `json:"activity_purpose"`
+	DestinationCity        string                `json:"destination_city"`
+	SPDDate                string                `json:"spd_date"`
+	DepartureDate          string                `json:"departure_date"`
+	ReturnDate             string                `json:"return_date"`
+	Status                 string                `json:"status"`
+	DocumentLink           string                `json:"document_link"`
+	TotalCost              float64               `json:"total_cost"`
+	Verificators           []VerificatorResponse `json:"verificators"`
+	Assignees              []AssigneeResponse    `json:"assignees"`
+	CreatedAt              string                `json:"created_at"`
+	UpdatedAt              string                `json:"updated_at"`
 }
 
 // VerificatorResponse represents the response body for a verificator
@@ -760,22 +773,23 @@ func FromEntity(bt *entity.BusinessTrip) *BusinessTripResponse {
 	}
 
 	return &BusinessTripResponse{
-		ID:                 bt.GetID(),
-		BusinessTripNumber: bt.GetBusinessTripNumber(),
-		StartDate:          bt.GetStartDate().Format("2006-01-02"),
-		EndDate:            bt.GetEndDate().Format("2006-01-02"),
-		ActivityPurpose:    bt.GetActivityPurpose(),
-		DestinationCity:    bt.GetDestinationCity(),
-		SPDDate:            bt.GetSPDDate().Format("2006-01-02"),
-		DepartureDate:      bt.GetDepartureDate().Format("2006-01-02"),
-		ReturnDate:         bt.GetReturnDate().Format("2006-01-02"),
-		Status:             string(bt.GetStatus()),
-		DocumentLink:       bt.GetDocumentLink(),
-		TotalCost:          bt.GetTotalCost(),
-		Verificators:       verificators,
-		Assignees:          assignees,
-		CreatedAt:          bt.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:          bt.UpdatedAt.Format(time.RFC3339),
+		ID:                     bt.GetID(),
+		BusinessTripNumber:     bt.GetBusinessTripNumber(),
+		AssignmentLetterNumber: bt.GetAssignmentLetterNumber(),
+		StartDate:              bt.GetStartDate().Format("2006-01-02"),
+		EndDate:                bt.GetEndDate().Format("2006-01-02"),
+		ActivityPurpose:        bt.GetActivityPurpose(),
+		DestinationCity:        bt.GetDestinationCity(),
+		SPDDate:                bt.GetSPDDate().Format("2006-01-02"),
+		DepartureDate:          bt.GetDepartureDate().Format("2006-01-02"),
+		ReturnDate:             bt.GetReturnDate().Format("2006-01-02"),
+		Status:                 string(bt.GetStatus()),
+		DocumentLink:           bt.GetDocumentLink(),
+		TotalCost:              bt.GetTotalCost(),
+		Verificators:           verificators,
+		Assignees:              assignees,
+		CreatedAt:              bt.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:              bt.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

@@ -14,6 +14,7 @@ type Config struct {
 	Server       ServerConfig
 	Database     DatabaseConfig
 	Gemini       GeminiConfig
+	OpenAI       OpenAIConfig
 	Zoom         ZoomConfig
 	Drive        DriveConfig
 	Notification NotificationConfig
@@ -41,6 +42,11 @@ type DatabaseConfig struct {
 
 // GeminiConfig holds Gemini API configuration
 type GeminiConfig struct {
+	APIKey string
+}
+
+// OpenAIConfig holds OpenAI API configuration
+type OpenAIConfig struct {
 	APIKey string
 }
 
@@ -117,6 +123,9 @@ func Load() (*Config, error) {
 		Gemini: GeminiConfig{
 			APIKey: os.Getenv("GEMINI_API_KEY"),
 		},
+		OpenAI: OpenAIConfig{
+			APIKey: os.Getenv("OPENAI_API_KEY"),
+		},
 		Zoom: ZoomConfig{
 			APIKey:    os.Getenv("ZOOM_API_KEY"),
 			APISecret: os.Getenv("ZOOM_API_SECRET"),
@@ -175,6 +184,11 @@ func (c *Config) Validate() error {
 	// If not provided, transaction extraction won't work but other features will
 	if c.Gemini.APIKey == "" {
 		log.Println("⚠️  WARNING: GEMINI_API_KEY not set - transaction extraction will not work")
+	}
+
+	// OpenAI API Key is optional - used as fallback when all Gemini models fail
+	if c.OpenAI.APIKey == "" {
+		log.Println("⚠️  WARNING: OPENAI_API_KEY not set - GPT-4o-mini fallback will not be available")
 	}
 
 	// Optional validation for meeting functionality

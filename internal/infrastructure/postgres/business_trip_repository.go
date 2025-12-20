@@ -21,31 +21,30 @@ import (
 const (
 	insertBusinessTrip = `
 		INSERT INTO business_trips (
-			id, organization_id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
+			id, organization_id, business_trip_number, assignment_letter_number, start_date, end_date, activity_purpose, destination_city,
 			spd_date, departure_date, return_date, status, document_link, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id
 	`
 
 	updateBusinessTrip = `
 		UPDATE business_trips
-		SET start_date = $2, end_date = $3, activity_purpose = $4, destination_city = $5,
-			spd_date = $6, departure_date = $7, return_date = $8, status = $9, document_link = $10, updated_at = $11
+		SET assignment_letter_number = $2, start_date = $3, end_date = $4, activity_purpose = $5, destination_city = $6,
+			spd_date = $7, departure_date = $8, return_date = $9, status = $10, document_link = $11, updated_at = $12
 		WHERE id = $1
 	`
 
 	findBusinessTripByID = `
 		SELECT
-			bt.id, bt.organization_id, bt.business_trip_number, bt.start_date, bt.end_date, bt.activity_purpose, bt.destination_city,
+			bt.id, bt.organization_id, bt.business_trip_number, bt.assignment_letter_number, bt.start_date, bt.end_date, bt.activity_purpose, bt.destination_city,
 			bt.spd_date, bt.departure_date, bt.return_date, bt.status, bt.document_link, bt.created_at, bt.updated_at
 		FROM business_trips bt
 		WHERE bt.id = $1 AND bt.deleted_at IS NULL
 	`
 
 	deleteBusinessTrip = `
-		UPDATE business_trips
-		SET deleted_at = $1
-		WHERE id = $2
+		DELETE FROM business_trips
+		WHERE id = $1
 	`
 
 	insertAssignee = `
@@ -251,6 +250,7 @@ func (r *businessTripRepository) Create(ctx context.Context, bt *entity.Business
 		bt.ID,
 		bt.OrganizationID,
 		bt.BusinessTripNumber,
+		bt.AssignmentLetterNumber,
 		bt.StartDate,
 		bt.EndDate,
 		bt.ActivityPurpose,
@@ -313,6 +313,7 @@ func (r *businessTripRepository) Update(ctx context.Context, bt *entity.Business
 
 	res, err := r.db.ExecContext(ctx, updateBusinessTrip,
 		bt.ID,
+		bt.AssignmentLetterNumber,
 		bt.StartDate,
 		bt.EndDate,
 		bt.ActivityPurpose,
@@ -342,11 +343,9 @@ func (r *businessTripRepository) Update(ctx context.Context, bt *entity.Business
 	return bt, nil
 }
 
-// Delete soft deletes a business trip
+// Delete hard deletes a business trip and its related data (cascading delete)
 func (r *businessTripRepository) Delete(ctx context.Context, id string) error {
-	now := time.Now()
-
-	res, err := r.db.ExecContext(ctx, deleteBusinessTrip, now, id)
+	res, err := r.db.ExecContext(ctx, deleteBusinessTrip, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete business trip: %w", err)
 	}
@@ -391,7 +390,7 @@ func (r *businessTripRepository) List(ctx context.Context, params *pagination.Qu
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
 		SELECT
-			id, organization_id, business_trip_number, start_date, end_date, activity_purpose, destination_city,
+			id, organization_id, business_trip_number, assignment_letter_number, start_date, end_date, activity_purpose, destination_city,
 			spd_date, departure_date, return_date, status, document_link, created_at, updated_at
 		FROM business_trips`)
 

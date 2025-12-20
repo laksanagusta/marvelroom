@@ -154,15 +154,16 @@ func (a *AssigneeDTO) Validate(index int) error {
 
 // RecapReportDTO represents the overall structure of the recap report
 type RecapReportDTO struct {
-	StartDate            string        `json:"start_date"`
-	EndDate              string        `json:"end_date"`
-	ActivityPurpose      string        `json:"activity_purpose"` // This maps to Destination in current GenerateRecapExcelRequest
-	DestinationCity      string        `json:"destination_city"`
-	SpdDate              string        `json:"spd_date"`
-	DepartureDate        string        `json:"departure_date"`
-	ReturnDate           string        `json:"return_date"`
-	ReceiptSignatureDate string        `json:"receipt_signature_date"`
-	Assignees            []AssigneeDTO `json:"assignees"`
+	StartDate              string        `json:"start_date"`
+	EndDate                string        `json:"end_date"`
+	ActivityPurpose        string        `json:"activity_purpose"` // This maps to Destination in current GenerateRecapExcelRequest
+	DestinationCity        string        `json:"destination_city"`
+	SpdDate                string        `json:"spd_date"`
+	DepartureDate          string        `json:"departure_date"`
+	ReturnDate             string        `json:"return_date"`
+	AssignmentLetterNumber string        `json:"assignment_letter_number"`
+	ReceiptSignatureDate   string        `json:"receipt_signature_date"`
+	Assignees              []AssigneeDTO `json:"assignees"`
 }
 
 func (r *RecapReportDTO) Validate() error {

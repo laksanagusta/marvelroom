@@ -13,11 +13,13 @@ import (
 	"sandbox/internal/infrastructure/excel"
 	"sandbox/internal/infrastructure/file"
 	"sandbox/internal/infrastructure/gemini"
+	grcInfra "sandbox/internal/infrastructure/grc"
 	"sandbox/internal/infrastructure/llm"
 	"sandbox/internal/infrastructure/notification"
 	postgresRepo "sandbox/internal/infrastructure/postgres"
 	"sandbox/internal/infrastructure/zoom"
 	businessTripUC "sandbox/internal/usecase/business_trip"
+	grcUC "sandbox/internal/usecase/grc"
 	meetingUC "sandbox/internal/usecase/meeting"
 	transactionUC "sandbox/internal/usecase/transaction"
 	vaccineUC "sandbox/internal/usecase/vaccine"
@@ -43,6 +45,7 @@ type Container struct {
 	WorkPaperHandler                *deskHandler.WorkPaperHandler
 	WorkPaperSignatureHandler       *handler.WorkPaperSignatureHandler
 	VaccineHandler                  *handler.VaccineHandler
+	GRCHandler                      *handler.GRCHandler
 
 	// Backward compatibility aliases (deprecated)
 	MasterLakipItemHandler *deskHandler.WorkPaperItemHandler
@@ -145,7 +148,7 @@ func NewContainer(cfg *Config) *Container {
 	dbWrapper := database.NewDB(dbx)
 
 	// Infrastructure layer
-	geminiClient := gemini.NewClient(cfg.Gemini.APIKey)
+	geminiClient := gemini.NewClientWithFallback(cfg.Gemini.APIKey, cfg.OpenAI.APIKey)
 	identityService := infrastructure.NewIdentityServiceWithAPIKey(cfg.User.BaseURL, cfg.User.APIKey)
 	fileProcessor := file.NewProcessor()
 	excelGenerator := excel.NewGenerator()
@@ -295,7 +298,7 @@ func NewContainer(cfg *Config) *Container {
 		panic("Failed to create Google Drive service: " + err.Error())
 	}
 
-	llmService, err := llm.NewGeminiService(cfg.Gemini.APIKey)
+	llmService, err := llm.NewFallbackLLMService(cfg.Gemini.APIKey, cfg.OpenAI.APIKey)
 	if err != nil {
 		panic("Failed to create LLM service: " + err.Error())
 	}
@@ -400,6 +403,22 @@ func NewContainer(cfg *Config) *Container {
 		checkDocumentUseCase,
 	)
 
+	// GRC Dashboard - Live data from Google Spreadsheet
+	grcDataProvider := grcInfra.NewDataProvider()
+	grcRepository := grcInfra.NewRepository(grcDataProvider)
+	getOverviewUseCase := grcUC.NewGetOverviewUseCase(grcRepository)
+	listUnitsUseCase := grcUC.NewListUnitsUseCase(grcRepository)
+	getUnitDetailUseCase := grcUC.NewGetUnitDetailUseCase(grcRepository)
+	compareUnitsUseCase := grcUC.NewCompareUnitsUseCase(grcRepository)
+	getCategoriesUseCase := grcUC.NewGetCategoriesUseCase(grcRepository)
+	grcHandler := handler.NewGRCHandler(
+		getOverviewUseCase,
+		listUnitsUseCase,
+		getUnitDetailUseCase,
+		compareUnitsUseCase,
+		getCategoriesUseCase,
+	)
+
 	return &Container{
 		TransactionHandler:                     transactionHandler,
 		MeetingHandler:                         meetingHandler,
@@ -412,6 +431,7 @@ func NewContainer(cfg *Config) *Container {
 		WorkPaperHandler:                       workPaperHandler,
 		WorkPaperSignatureHandler:              workPaperSignatureHandler,
 		VaccineHandler:                         vaccineHandler,
+		GRCHandler:                             grcHandler,
 		ExtractTransactionsUseCase:             extractTransactionsUseCase,
 		GenerateRecapExcelUseCase:              generateRecapExcelUseCase,
 		CreateMeetingUseCase:                   createMeetingUseCase,

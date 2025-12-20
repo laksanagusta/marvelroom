@@ -32,13 +32,15 @@ func (g *Generator) GenerateNextNumber(ctx context.Context) (string, error) {
 	defer tx.Rollback()
 
 	// Get the current maximum sequence number
+	// Note: We intentionally do NOT filter by deleted_at IS NULL here
+	// because we need to find the highest sequence ever used, including deleted records.
+	// This prevents duplicate business trip numbers when a record is deleted.
 	var maxSeq int
 	query := `
 		SELECT COALESCE(MAX(CAST(SUBSTRING(business_trip_number FROM 4) AS INTEGER)), 0)
 		FROM business_trips
 		WHERE business_trip_number LIKE 'BT-%'
 		AND business_trip_number ~ '^BT-[0-9]{6}$'
-		AND deleted_at IS NULL
 	`
 
 	err = tx.QueryRowContext(ctx, query).Scan(&maxSeq)

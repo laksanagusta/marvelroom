@@ -2,8 +2,8 @@ package business_trip
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -39,7 +39,6 @@ func NewCreateBusinessTripUseCase(
 }
 
 func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTripRequest, authenticatedUser entity.AuthenticatedUser) (*BusinessTripResponse, error) {
-	// Extract employee numbers from request to fetch user data
 	var employeeNumbers []string
 	for _, assigneeReq := range req.Assignees {
 		if assigneeReq.EmployeeNumber != "" {
@@ -47,15 +46,14 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		}
 	}
 
-	// Fetch user data from external API
+	jsn, _ := json.Marshal(req)
+	fmt.Println("req", string(jsn))
+
 	userDataMap, err := uc.userService.GetUserDataByEmployeeIDs(ctx, employeeNumbers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)
 	}
 
-	log.Println("userDataMap", userDataMap)
-
-	// Validate that all employee numbers exist in the API response
 	var invalidEmployees []InvalidEmployeeError
 	for i, assigneeReq := range req.Assignees {
 		if assigneeReq.EmployeeNumber != "" {
@@ -71,7 +69,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		}
 	}
 
-	// If there are invalid employees, return a validation error
 	if len(invalidEmployees) > 0 {
 		return nil, &EmployeeValidationError{
 			Message:          "Some employee numbers were not found in identity service",
@@ -87,7 +84,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 	var completeBusinessTrip *entity.BusinessTrip
 
 	err = uc.db.WithTransaction(ctx, func(ctx context.Context, tx database.DBTx) error {
-		// Create transaction-aware repositories
 		businessTripRepoWithTx := uc.businessTripRepo.(interface {
 			WithTransaction(database.DBTx) repository.BusinessTripRepository
 		}).WithTransaction(tx)
@@ -105,7 +101,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 			return err
 		}
 
-		// Record initial status in history (within the same transaction)
 		if uc.historyUseCase != nil {
 			err = uc.historyUseCase.ExecuteWithTx(ctx, RecordHistoryInput{
 				BusinessTripID: businessTrip.ID,
@@ -113,25 +108,22 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 				FieldName:      "status",
 				OldValue:       "",
 				NewValue:       string(businessTrip.Status),
+				ChangedBy:      authenticatedUser.GetFullName(),
 			}, tx)
 			if err != nil {
 				return fmt.Errorf("failed to record history: %w", err)
 			}
 		}
 
-		// Process assignees with external API data
 		for _, assignee := range businessTrip.Assignees {
 			assignee.BusinessTripID = businessTrip.ID
 
-			// Find employee number to fetch user data
 			employeeNumber := assignee.EmployeeNumber
 			if employeeNumber == "" {
 				employeeNumber = assignee.EmployeeID // fallback
 			}
 
-			// Fetch user data from external API
 			if userData, exists := userDataMap[employeeNumber]; exists {
-				// Update assignee with data from external API
 				assignee.EmployeeID = userData.EmployeeID         // external API user ID
 				assignee.EmployeeName = userData.Name             // full name from API
 				assignee.EmployeeNumber = userData.EmployeeNumber // NIP from API
@@ -144,6 +136,8 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 
 			for _, transaction := range createdAssignee.Transactions {
 				transaction.AssigneeID = createdAssignee.ID
+				jsn, _ := json.Marshal(transaction)
+				fmt.Println("transaction", string(jsn))
 				_, err := transactionRepoWithTx.CreateTransaction(ctx, transaction)
 				if err != nil {
 					return err
@@ -151,7 +145,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 			}
 		}
 
-		// Create verificators in database
 		for _, verificator := range businessTrip.Verificators {
 			verificator.BusinessTripID = businessTrip.ID
 			_, err := businessTripRepoWithTx.CreateVerificator(ctx, verificator)
@@ -166,8 +159,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		return nil, err
 	}
 
-	// Query complete business trip using main repository (not within transaction)
-	// This avoids connection state issues within transaction
 	completeBusinessTrip, err = uc.businessTripRepo.GetByID(ctx, bt.ID)
 	if err != nil {
 		return nil, err

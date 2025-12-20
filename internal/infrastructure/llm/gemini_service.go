@@ -3,14 +3,11 @@ package llm
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"strings"
-	"time"
 
 	"sandbox/internal/domain/service"
 )
@@ -22,38 +19,6 @@ type GeminiService struct {
 	model      string
 }
 
-// geminiRequest represents the request structure for Gemini API
-type geminiRequest struct {
-	Contents []geminiContent `json:"contents"`
-}
-
-// geminiContent represents content structure for Gemini API
-type geminiContent struct {
-	Parts []geminiPart `json:"parts"`
-}
-
-// geminiPart represents a part of content for Gemini API
-type geminiPart struct {
-	Text       string      `json:"text,omitempty"`
-	InlineData *geminiFile `json:"inline_data,omitempty"`
-}
-
-// geminiFile represents file data for Gemini API
-type geminiFile struct {
-	MimeType string `json:"mime_type"`
-	Data     string `json:"data"`
-}
-
-// geminiResponse represents the response structure from Gemini API
-type geminiResponse struct {
-	Candidates []geminiCandidate `json:"candidates"`
-}
-
-// geminiCandidate represents a candidate response from Gemini API
-type geminiCandidate struct {
-	Content geminiContent `json:"content"`
-}
-
 // NewGeminiService creates a new Gemini service instance
 func NewGeminiService(apiKey string) (service.LLMService, error) {
 	if apiKey == "" {
@@ -61,11 +26,9 @@ func NewGeminiService(apiKey string) (service.LLMService, error) {
 	}
 
 	return &GeminiService{
-		apiKey: apiKey,
-		httpClient: &http.Client{
-			Timeout: 2000 * time.Second, // Longer timeout for document processing
-		},
-		model: "gemini-2.5-flash", // Using flash model for better multimodal capabilities
+		apiKey:     apiKey,
+		httpClient: LongTimeoutHTTPClient(),
+		model:      GeminiModels[0], // Using first model (gemini-2.5-flash) as default
 	}, nil
 }
 
@@ -84,7 +47,7 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 	prompt := g.buildPrompt(req.Number, req.Statement, req.Explanation, req.FillingGuide)
 
 	// Prepare parts for the request
-	parts := []geminiPart{
+	parts := []GeminiPart{
 		{Text: prompt},
 	}
 
@@ -106,13 +69,13 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 		}
 
 		// Encode file data as base64
-		mimeType := g.getMimeType(doc.Type)
-		data := g.encodeBase64(doc.Data)
+		mimeType := GetMimeType(doc.Type)
+		data := EncodeBase64(doc.Data)
 
 		log.Printf("Adding document %d to Gemini request: MIME type=%s, encoded size=%d chars", i, mimeType, len(data))
 
-		parts = append(parts, geminiPart{
-			InlineData: &geminiFile{
+		parts = append(parts, GeminiPart{
+			InlineData: &GeminiFile{
 				MimeType: mimeType,
 				Data:     data,
 			},
@@ -122,8 +85,8 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 	log.Printf("Total parts being sent to Gemini API: %d (1 text + %d documents)", len(parts), len(parts)-1)
 
 	// Build the request
-	geminiReq := geminiRequest{
-		Contents: []geminiContent{
+	geminiReq := GeminiAPIRequest{
+		Contents: []GeminiContent{
 			{
 				Parts: parts,
 			},
@@ -137,7 +100,7 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 	}
 
 	// Make API call
-	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", g.model, g.apiKey)
+	apiURL := GetGeminiModelURL(g.model, g.apiKey)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
@@ -162,17 +125,15 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 	}
 
 	// Parse response
-	var geminiResp geminiResponse
+	var geminiResp GeminiAPIResponse
 	if err := json.Unmarshal(body, &geminiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse Gemini API response: %w", err)
 	}
 
-	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
-		return nil, fmt.Errorf("empty response from Gemini API")
+	rawText, err := GetTextFromGeminiResponse(&geminiResp)
+	if err != nil {
+		return nil, err
 	}
-
-	// Extract the text response
-	rawText := geminiResp.Candidates[0].Content.Parts[0].Text
 
 	// Parse the structured response
 	result, err := g.parseLLMResponse(rawText)
@@ -218,33 +179,10 @@ Dokumen yang akan dianalisis:`, number, statement, explanation, fillingGuide)
 
 // parseLLMResponse parses the structured response from LLM
 func (g *GeminiService) parseLLMResponse(rawText string) (*service.DocumentCheckResponse, error) {
-	// Clean the response text
-	cleanText := strings.TrimSpace(rawText)
-
-	// Extract JSON from response (handle markdown code blocks)
-	if strings.Contains(cleanText, "```json") {
-		start := strings.Index(cleanText, "```json") + 7
-		end := strings.LastIndex(cleanText, "```")
-		if end > start {
-			cleanText = cleanText[start:end]
-		}
-	} else if strings.Contains(cleanText, "```") {
-		start := strings.Index(cleanText, "```") + 3
-		end := strings.LastIndex(cleanText, "```")
-		if end > start {
-			cleanText = cleanText[start:end]
-		}
+	jsonStr, err := ExtractJSONFromText(rawText)
+	if err != nil {
+		return g.parseFallbackResponse(rawText)
 	}
-
-	// Find JSON object boundaries
-	jsonStart := strings.Index(cleanText, "{")
-	jsonEnd := strings.LastIndex(cleanText, "}")
-
-	if jsonStart == -1 || jsonEnd == -1 || jsonStart >= jsonEnd {
-		return nil, fmt.Errorf("no valid JSON found in response: %s", cleanText)
-	}
-
-	jsonStr := cleanText[jsonStart : jsonEnd+1]
 
 	// Parse JSON
 	var response struct {
@@ -254,7 +192,7 @@ func (g *GeminiService) parseLLMResponse(rawText string) (*service.DocumentCheck
 
 	if err := json.Unmarshal([]byte(jsonStr), &response); err != nil {
 		// Fallback: try to extract boolean and note from text
-		return g.parseFallbackResponse(cleanText)
+		return g.parseFallbackResponse(rawText)
 	}
 
 	return &service.DocumentCheckResponse{
@@ -265,15 +203,10 @@ func (g *GeminiService) parseLLMResponse(rawText string) (*service.DocumentCheck
 
 // parseFallbackResponse attempts to extract meaning when JSON parsing fails
 func (g *GeminiService) parseFallbackResponse(text string) (*service.DocumentCheckResponse, error) {
-	lowerText := strings.ToLower(text)
+	lowerText := CleanJSON(text)
 
 	isValid := true
-	if strings.Contains(lowerText, "tidak memenuhi") ||
-		strings.Contains(lowerText, "tidak lengkap") ||
-		strings.Contains(lowerText, "belum ada") ||
-		strings.Contains(lowerText, "perlu perbaikan") ||
-		strings.Contains(lowerText, "invalid") ||
-		strings.Contains(lowerText, "false") {
+	if contains(lowerText, "tidak memenuhi", "tidak lengkap", "belum ada", "perlu perbaikan", "invalid", "false") {
 		isValid = false
 	}
 
@@ -288,28 +221,16 @@ func (g *GeminiService) parseFallbackResponse(text string) (*service.DocumentChe
 	}, nil
 }
 
-// getMimeType maps file type to MIME type
-func (g *GeminiService) getMimeType(fileType string) string {
-	mimeTypeMap := map[string]string{
-		"pdf":          "application/pdf",
-		"document":     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		"spreadsheet":  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		"presentation": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		"text":         "text/plain",
-		"image":        "image/jpeg", // Default image type
-		"jpeg":         "image/jpeg",
-		"jpg":          "image/jpeg",
-		"png":          "image/png",
+// contains checks if text contains any of the given substrings
+func contains(text string, substrings ...string) bool {
+	for _, s := range substrings {
+		if len(s) > 0 && len(text) >= len(s) {
+			for i := 0; i <= len(text)-len(s); i++ {
+				if text[i:i+len(s)] == s {
+					return true
+				}
+			}
+		}
 	}
-
-	if mimeType, exists := mimeTypeMap[fileType]; exists {
-		return mimeType
-	}
-
-	return "application/octet-stream" // Default binary type
-}
-
-// encodeBase64 encodes data to base64
-func (g *GeminiService) encodeBase64(data []byte) string {
-	return base64.StdEncoding.EncodeToString(data)
+	return false
 }
