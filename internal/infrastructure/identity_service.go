@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -137,13 +138,13 @@ func (s *IdentityService) GetUsersByEmployeeIDs(ctx context.Context, employeeIDs
 		return &UserAPIResponse{Data: []User{}}, nil
 	}
 
-	employeeIDParam := "in " + strings.Join(employeeIDs, ",")
-	url := fmt.Sprintf("%s/users?page=1&limit=%d&employee_id=%s,",
+	employeeIDParam := url.QueryEscape("in " + strings.Join(employeeIDs, ","))
+	apiURL := fmt.Sprintf("%s/users?page=1&limit=%d&employee_id=%s",
 		s.baseURL,
 		len(employeeIDs),
 		employeeIDParam)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

@@ -35,17 +35,16 @@ type GetWorkPaperDetailsResponse struct {
 
 // WorkPaperNoteResponse represents a work paper note in the detailed response
 type WorkPaperNoteResponse struct {
-	ID           string `json:"id"`
-	WorkPaperID  string `json:"work_paper_id"`
-	Statement    string `json:"statement"`
-	Explanation  string `json:"explanation"`
-	FillingGuide string `json:"filling_guide"`
-	Status       string `json:"status"`
-	DriveLink    string `json:"gdrive_link"`
-	IsValid      *bool  `json:"is_valid"`
-	Notes        string `json:"notes"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID              string `json:"id"`
+	WorkPaperID     string `json:"work_paper_id"`
+	Classification  string `json:"classification"`
+	DeskInstruction string `json:"desk_instruction"`
+	Status          string `json:"status"`
+	DriveLink       string `json:"gdrive_link"`
+	IsValid         *bool  `json:"is_valid"`
+	Notes           string `json:"notes"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 // WorkPaperSignatureResponse represents a work paper signature in the detailed response
@@ -99,11 +98,10 @@ func (uc *GetWorkPaperDetailsUseCase) Execute(ctx context.Context, workPaperID s
 			noteResponse.IsValid = note.IsValid
 		}
 
-		// Add statement, explanation, and filling guide from master item if available
+		// Add classification and desk_instruction from master item if available
 		if note.MasterItem != nil {
-			noteResponse.Statement = note.MasterItem.Statement
-			noteResponse.Explanation = note.MasterItem.Explanation
-			noteResponse.FillingGuide = note.MasterItem.FillingGuide
+			noteResponse.Classification = note.MasterItem.Classification
+			noteResponse.DeskInstruction = note.MasterItem.DeskInstruction
 			noteResponse.Status = "active"
 			if note.MasterItem.DeletedAt != nil {
 				noteResponse.Status = "inactive"

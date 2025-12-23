@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes configures all application routes
-func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler, businessTripVerificationHandler *handler.BusinessTripVerificationHandler, grcHandler *handler.GRCHandler) {
+func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler, businessTripVerificationHandler *handler.BusinessTripVerificationHandler, grcHandler *handler.GRCHandler, chatbotHandler *handler.ChatbotHandler) {
 	api := app.Group("/api")
 	api.Post("/upload", middleware.AuthMiddleware(), transactionHandler.UploadAndExtract)
 	api.Post("/upload/detailed", middleware.AuthMiddleware(), transactionHandler.UploadAndExtractDetailed)
@@ -143,6 +143,32 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 		r.Get("/categories", grcHandler.GetCategories)
 	})
 
+	// Chatbot routes - RAG-powered chat with file search
+	if chatbotHandler != nil {
+		api.Route("/v1/chatbot", func(r fiber.Router) {
+			r.Use(middleware.AuthMiddleware()) // Apply auth middleware to all chatbot routes
+
+			// Knowledge Base routes
+			r.Route("/knowledge-bases", func(r fiber.Router) {
+				r.Post("/", chatbotHandler.CreateKnowledgeBase)
+				r.Get("/", chatbotHandler.ListKnowledgeBases)
+				r.Get("/:id", chatbotHandler.GetKnowledgeBase)
+				r.Delete("/:id", chatbotHandler.DeleteKnowledgeBase)
+				r.Post("/:id/files", chatbotHandler.UploadFiles)
+				r.Post("/:id/sync-status", chatbotHandler.SyncDocumentStatus)
+			})
+
+			// Chat Session routes
+			r.Route("/sessions", func(r fiber.Router) {
+				r.Post("/", chatbotHandler.CreateChatSession)
+				r.Get("/", chatbotHandler.ListChatSessions)
+				r.Delete("/:id", chatbotHandler.DeleteChatSession)
+				r.Post("/:id/messages", chatbotHandler.SendMessage)
+				r.Get("/:id/messages", chatbotHandler.GetChatHistory)
+			})
+		})
+	}
+
 	// Health check
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -153,5 +179,5 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 
 // Backward compatibility function (deprecated)
 func SetupRoutesLegacy(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, masterLakipItemHandler *deskHandler.WorkPaperItemHandler, paperWorkHandler *deskHandler.WorkPaperHandler) {
-	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, paperWorkHandler, nil, nil, nil, nil, nil)
+	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, paperWorkHandler, nil, nil, nil, nil, nil, nil)
 }

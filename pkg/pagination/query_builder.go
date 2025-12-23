@@ -188,9 +188,8 @@ func (qb *QueryBuilder) isValidField(field string) bool {
 
 		// Work paper item fields
 		"number":            true,
-		"statement":         true,
-		"explanation":       true,
-		"filling_guide":     true,
+		"classification":    true,
+		"desk_instruction":  true,
 		"parent_id":         true,
 		"level":             true,
 		"sort_order":        true,

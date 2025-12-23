@@ -46,9 +46,6 @@ func (uc *CreateBusinessTripUseCase) Execute(ctx context.Context, req BusinessTr
 		}
 	}
 
-	jsn, _ := json.Marshal(req)
-	fmt.Println("req", string(jsn))
-
 	userDataMap, err := uc.userService.GetUserDataByEmployeeIDs(ctx, employeeNumbers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user data: %w", err)

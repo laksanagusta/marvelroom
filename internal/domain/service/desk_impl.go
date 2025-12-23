@@ -49,7 +49,7 @@ func NewDeskService(
 // Work Paper Item operations
 
 func (s *deskService) CreateWorkPaperItem(ctx context.Context, req *CreateWorkPaperItemRequest) (*entity.WorkPaperItem, error) {
-	item, err := entity.NewWorkPaperItem(req.Type, req.Number, req.Statement, req.Explanation, req.FillingGuide, req.ParentID, req.Level, req.SortOrder)
+	item, err := entity.NewWorkPaperItem(req.Type, req.Number, req.Classification, req.DeskInstruction, req.ParentID, req.Level, req.SortOrder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper item: %w", err)
 	}
@@ -87,7 +87,7 @@ func (s *deskService) UpdateWorkPaperItem(ctx context.Context, req *UpdateWorkPa
 	}
 
 	// If IsActive is not provided, just update other fields
-	err = item.Update(req.Type, req.Number, req.Statement, req.Explanation, req.FillingGuide, req.SortOrder)
+	err = item.Update(req.Type, req.Number, req.Classification, req.DeskInstruction, req.SortOrder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper item: %w", err)
 	}
@@ -498,11 +498,10 @@ func (s *deskService) CheckDocument(ctx context.Context, noteID string) (*CheckD
 
 	// Check documents using LLM
 	llmReq := &DocumentCheckRequest{
-		Number:       masterItem.Number,
-		Statement:    masterItem.Statement,
-		Explanation:  masterItem.Explanation,
-		FillingGuide: masterItem.FillingGuide,
-		Documents:    documents,
+		Number:          masterItem.Number,
+		Classification:  masterItem.Classification,
+		DeskInstruction: masterItem.DeskInstruction,
+		Documents:       documents,
 	}
 
 	llmResp, err := s.llmService.CheckDocument(ctx, llmReq)
@@ -564,14 +563,13 @@ func (s *deskService) UpdateWorkPaperNoteValidation(ctx context.Context, noteID 
 func (s *deskService) CreateMasterLakipItem(ctx context.Context, req *CreateMasterLakipItemRequest) (*entity.WorkPaperItem, error) {
 	// Convert to new request type and call new method
 	newReq := &CreateWorkPaperItemRequest{
-		Type:         req.Type,
-		Number:       req.Number,
-		Statement:    req.Statement,
-		Explanation:  req.Explanation,
-		FillingGuide: req.FillingGuide,
-		ParentID:     req.ParentID,
-		Level:        req.Level,
-		SortOrder:    req.SortOrder,
+		Type:            req.Type,
+		Number:          req.Number,
+		Classification:  req.Classification,
+		DeskInstruction: req.DeskInstruction,
+		ParentID:        req.ParentID,
+		Level:           req.Level,
+		SortOrder:       req.SortOrder,
 	}
 	return s.CreateWorkPaperItem(ctx, newReq)
 }
@@ -583,12 +581,11 @@ func (s *deskService) GetMasterLakipItem(ctx context.Context, id string) (*entit
 func (s *deskService) UpdateMasterLakipItem(ctx context.Context, id string, req *UpdateMasterLakipItemRequest) (*entity.WorkPaperItem, error) {
 	// Convert to new request type and call new method
 	newReq := &UpdateWorkPaperItemRequest{
-		Type:         req.Type,
-		Number:       req.Number,
-		Statement:    req.Statement,
-		Explanation:  req.Explanation,
-		FillingGuide: req.FillingGuide,
-		SortOrder:    req.SortOrder,
+		Type:            req.Type,
+		Number:          req.Number,
+		Classification:  req.Classification,
+		DeskInstruction: req.DeskInstruction,
+		SortOrder:       req.SortOrder,
 	}
 	// Set ID from parameter
 	newReq.ID, _ = uuid.Parse(id)

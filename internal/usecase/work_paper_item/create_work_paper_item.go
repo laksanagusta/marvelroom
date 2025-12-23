@@ -20,43 +20,40 @@ func NewCreateWorkPaperItemUseCase(deskService service.DeskService) *CreateWorkP
 
 // Request represents the request payload for creating a work paper item
 type Request struct {
-	Type         string `json:"type" validate:"required"`
-	Number       string `json:"number" validate:"required"`
-	Statement    string `json:"statement" validate:"required"`
-	Explanation  string `json:"explanation"`
-	FillingGuide string `json:"filling_guide"`
-	ParentID     string `json:"parent_id,omitempty"`
-	Level        int    `json:"level"`
-	SortOrder    int    `json:"sort_order"`
+	Type            string `json:"type" validate:"required"`
+	Number          string `json:"number" validate:"required"`
+	Classification  string `json:"classification"`
+	DeskInstruction string `json:"desk_instruction" validate:"required"`
+	ParentID        string `json:"parent_id,omitempty"`
+	Level           int    `json:"level"`
+	SortOrder       int    `json:"sort_order"`
 }
 
 // Response represents the response payload for creating a work paper item
 type Response struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	Number       string `json:"number"`
-	Statement    string `json:"statement"`
-	Explanation  string `json:"explanation"`
-	FillingGuide string `json:"filling_guide"`
-	ParentID     string `json:"parent_id,omitempty"`
-	Level        int    `json:"level"`
-	SortOrder    int    `json:"sort_order"`
-	IsActive     bool   `json:"is_active"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID              string `json:"id"`
+	Type            string `json:"type"`
+	Number          string `json:"number"`
+	Classification  string `json:"classification"`
+	DeskInstruction string `json:"desk_instruction"`
+	ParentID        string `json:"parent_id,omitempty"`
+	Level           int    `json:"level"`
+	SortOrder       int    `json:"sort_order"`
+	IsActive        bool   `json:"is_active"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 // Execute executes the use case
 func (uc *CreateWorkPaperItemUseCase) Execute(ctx context.Context, req Request) (*Response, error) {
 	// Create service request
 	serviceReq := &service.CreateWorkPaperItemRequest{
-		Type:         req.Type,
-		Number:       req.Number,
-		Statement:    req.Statement,
-		Explanation:  req.Explanation,
-		FillingGuide: req.FillingGuide,
-		Level:        req.Level,
-		SortOrder:    req.SortOrder,
+		Type:            req.Type,
+		Number:          req.Number,
+		Classification:  req.Classification,
+		DeskInstruction: req.DeskInstruction,
+		Level:           req.Level,
+		SortOrder:       req.SortOrder,
 	}
 
 	// Handle ParentID if provided
@@ -74,17 +71,16 @@ func (uc *CreateWorkPaperItemUseCase) Execute(ctx context.Context, req Request) 
 
 	// Convert to response
 	response := &Response{
-		ID:           item.ID.String(),
-		Type:         item.Type,
-		Number:       item.Number,
-		Statement:    item.Statement,
-		Explanation:  item.Explanation,
-		FillingGuide: item.FillingGuide,
-		Level:        item.Level,
-		SortOrder:    item.SortOrder,
-		IsActive:     item.IsActive,
-		CreatedAt:    item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:    item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:              item.ID.String(),
+		Type:            item.Type,
+		Number:          item.Number,
+		Classification:  item.Classification,
+		DeskInstruction: item.DeskInstruction,
+		Level:           item.Level,
+		SortOrder:       item.SortOrder,
+		IsActive:        item.IsActive,
+		CreatedAt:       item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:       item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	// Handle ParentID if present

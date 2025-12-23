@@ -44,7 +44,7 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 	}
 
 	// Build the prompt
-	prompt := g.buildPrompt(req.Number, req.Statement, req.Explanation, req.FillingGuide)
+	prompt := g.buildPrompt(req.Number, req.Classification, req.DeskInstruction)
 
 	// Prepare parts for the request
 	parts := []GeminiPart{
@@ -147,19 +147,19 @@ func (g *GeminiService) CheckDocument(ctx context.Context, req *service.Document
 }
 
 // buildPrompt constructs the prompt for LAKIP document checking
-func (g *GeminiService) buildPrompt(number, statement, explanation, fillingGuide string) string {
+func (g *GeminiService) buildPrompt(number, classification, deskInstruction string) string {
 	prompt := fmt.Sprintf(`Periksa dokumen yang diberikan sesuai dengan poin kertas kerja LAKIP berikut:
 
 Nomor: %s
-Pernyataan: %s
-Penjelasan: %s
-Petunjuk Pengisian: %s
+Klasifikasi: %s
+
+Instruksi Desk:
+%s
 
 Tugas Anda:
 1. Analisis semua dokumen yang disediakan
-2. Periksa apakah dokumen memenuhi persyaratan yang disebutkan dalam pernyataan dan penjelasan
-3. Pertimbangkan petunjuk pengisian dalam evaluasi Anda
-4. Berikan penilaian objektif tentang kelengkapan dan kepatuhan dokumen
+2. Periksa apakah dokumen memenuhi persyaratan yang disebutkan dalam instruksi desk
+3. Berikan penilaian objektif tentang kelengkapan dan kepatuhan dokumen
 
 Jawab dengan format JSON berikut:
 {
@@ -172,7 +172,7 @@ Kriteria penilaian:
 - isValid: false jika dokumen tidak lengkap, tidak memenuhi persyaratan, atau ada masalah signifikan
 - note: berikan penjelasan tentang temuan Anda
 
-Dokumen yang akan dianalisis:`, number, statement, explanation, fillingGuide)
+Dokumen yang akan dianalisis:`, number, classification, deskInstruction)
 
 	return prompt
 }

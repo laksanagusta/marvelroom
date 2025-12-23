@@ -22,33 +22,31 @@ func NewUpdateWorkPaperItemUseCase(deskService service.DeskService) *UpdateWorkP
 
 // UpdateRequest represents the request payload for updating a work paper item
 type UpdateRequest struct {
-	ID           string `json:"id" validate:"required"`
-	Type         string `json:"type" validate:"required"`
-	Number       string `json:"number" validate:"required"`
-	Statement    string `json:"statement" validate:"required"`
-	Explanation  string `json:"explanation"`
-	FillingGuide string `json:"filling_guide"`
-	ParentID     string `json:"parent_id,omitempty"`
-	Level        int    `json:"level"`
-	SortOrder    int    `json:"sort_order"`
-	IsActive     *bool  `json:"is_active,omitempty"`
+	ID              string `json:"id" validate:"required"`
+	Type            string `json:"type" validate:"required"`
+	Number          string `json:"number" validate:"required"`
+	Classification  string `json:"classification"`
+	DeskInstruction string `json:"desk_instruction" validate:"required"`
+	ParentID        string `json:"parent_id,omitempty"`
+	Level           int    `json:"level"`
+	SortOrder       int    `json:"sort_order"`
+	IsActive        *bool  `json:"is_active,omitempty"`
 }
 
 // UpdateResponse represents the response payload for updating a work paper item
 type UpdateResponse struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	Number       string `json:"number"`
-	Statement    string `json:"statement"`
-	Explanation  string `json:"explanation"`
-	FillingGuide string `json:"filling_guide"`
-	ParentID     string `json:"parent_id,omitempty"`
-	Level        int    `json:"level"`
-	SortOrder    int    `json:"sort_order"`
-	IsActive     bool   `json:"is_active"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-	DeletedAt    string `json:"deleted_at,omitempty"`
+	ID              string `json:"id"`
+	Type            string `json:"type"`
+	Number          string `json:"number"`
+	Classification  string `json:"classification"`
+	DeskInstruction string `json:"desk_instruction"`
+	ParentID        string `json:"parent_id,omitempty"`
+	Level           int    `json:"level"`
+	SortOrder       int    `json:"sort_order"`
+	IsActive        bool   `json:"is_active"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+	DeletedAt       string `json:"deleted_at,omitempty"`
 }
 
 // Execute executes the use case for updating a work paper item
@@ -71,16 +69,15 @@ func (uc *UpdateWorkPaperItemUseCase) Execute(ctx context.Context, req UpdateReq
 
 	// Create service request
 	serviceReq := &service.UpdateWorkPaperItemRequest{
-		ID:           itemID,
-		Type:         req.Type,
-		Number:       req.Number,
-		Statement:    req.Statement,
-		Explanation:  req.Explanation,
-		FillingGuide: req.FillingGuide,
-		ParentID:     parentID,
-		Level:        req.Level,
-		SortOrder:    &req.SortOrder,
-		IsActive:     req.IsActive,
+		ID:              itemID,
+		Type:            req.Type,
+		Number:          req.Number,
+		Classification:  req.Classification,
+		DeskInstruction: req.DeskInstruction,
+		ParentID:        parentID,
+		Level:           req.Level,
+		SortOrder:       &req.SortOrder,
+		IsActive:        req.IsActive,
 	}
 
 	// Call service
@@ -91,17 +88,16 @@ func (uc *UpdateWorkPaperItemUseCase) Execute(ctx context.Context, req UpdateReq
 
 	// Convert to response
 	response := &UpdateResponse{
-		ID:           item.ID.String(),
-		Type:         item.Type,
-		Number:       item.Number,
-		Statement:    item.Statement,
-		Explanation:  item.Explanation,
-		FillingGuide: item.FillingGuide,
-		Level:        item.Level,
-		SortOrder:    item.SortOrder,
-		IsActive:     item.IsActive,
-		CreatedAt:    item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:    item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:              item.ID.String(),
+		Type:            item.Type,
+		Number:          item.Number,
+		Classification:  item.Classification,
+		DeskInstruction: item.DeskInstruction,
+		Level:           item.Level,
+		SortOrder:       item.SortOrder,
+		IsActive:        item.IsActive,
+		CreatedAt:       item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:       item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	// Handle ParentID if present

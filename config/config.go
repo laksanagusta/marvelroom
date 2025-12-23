@@ -138,9 +138,9 @@ func Load() (*Config, error) {
 			APIKey: os.Getenv("NOTIFICATION_API_KEY"),
 		},
 		User: UserConfig{
-			BaseURL:     getEnv("USER_SERVICE_BASE_URL", "http://localhost:5001/external/api/v1"),
+			BaseURL:     getEnv("USER_SERVICE_BASE_URL", "http://localhost:5001/api/external/v1"),
 			IdentityURL: getEnv("USER_SERVICE_IDENTITY_URL", "http://localhost:5001/api/v1"),
-			APIKey:      getEnv("USER_SERVICE_API_KEY", "56c290ad131b1f3e3131059c6c33ff46be0cff5cab3673de2bf2c1d81798b1d8"),
+			APIKey:      getEnv("USER_SERVICE_API_KEY", ""),
 		},
 		CDC: CDCConfig{
 			BaseURL:    getEnv("CDC_API_BASE_URL", "https://travel.state.gov/_travel-resources/content/travel-resources/www.tripsofia.com/api/v1"),

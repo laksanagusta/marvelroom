@@ -14,6 +14,7 @@ build-image:
 push-image: build-image
 	docker push $(IMAGE_NAME):$(VERSION)
 	docker push $(IMAGE_NAME):latest
+	@echo "🎉 Release complete!"
 
 .PHONY: run-local
 run-local:

@@ -27,12 +27,12 @@ func NewWorkPaperItemRepository(db database.Queryer) repository.WorkPaperItemRep
 func (r *workPaperItemRepository) Create(ctx context.Context, item *entity.WorkPaperItem) (*entity.WorkPaperItem, error) {
 	query := `
 		INSERT INTO work_paper_items (
-			id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
-		item.ID, item.Type, item.Number, item.Statement, item.Explanation, item.FillingGuide,
+		item.ID, item.Type, item.Number, item.Classification, item.DeskInstruction,
 		item.ParentID, item.Level, item.SortOrder, item.IsActive, item.CreatedAt, item.UpdatedAt,
 	)
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *workPaperItemRepository) Create(ctx context.Context, item *entity.WorkP
 
 func (r *workPaperItemRepository) GetByID(ctx context.Context, id string) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -61,7 +61,7 @@ func (r *workPaperItemRepository) GetByID(ctx context.Context, id string) (*enti
 
 func (r *workPaperItemRepository) GetByNumber(ctx context.Context, number string) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE number = $1 AND deleted_at IS NULL
 	`
@@ -80,13 +80,13 @@ func (r *workPaperItemRepository) GetByNumber(ctx context.Context, number string
 func (r *workPaperItemRepository) Update(ctx context.Context, item *entity.WorkPaperItem) (*entity.WorkPaperItem, error) {
 	query := `
 		UPDATE work_paper_items
-		SET type = $2, number = $3, statement = $4, explanation = $5, filling_guide = $6, parent_id = $7, level = $8, sort_order = $9, is_active = $10, updated_at = $11
+		SET type = $2, number = $3, classification = $4, desk_instruction = $5, parent_id = $6, level = $7, sort_order = $8, is_active = $9, updated_at = $10
 		WHERE id = $1
 	`
 
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx, query,
-		item.ID, item.Type, item.Number, item.Statement, item.Explanation, item.FillingGuide,
+		item.ID, item.Type, item.Number, item.Classification, item.DeskInstruction,
 		item.ParentID, item.Level, item.SortOrder, item.IsActive, now,
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *workPaperItemRepository) List(ctx context.Context, params *pagination.Q
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
 		SELECT
-			id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+			id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items`)
 	for _, filter := range params.Filters {
 		if err := queryBuilder.AddFilter(filter); err != nil {
@@ -194,7 +194,7 @@ func (r *workPaperItemRepository) List(ctx context.Context, params *pagination.Q
 
 func (r *workPaperItemRepository) ListActive(ctx context.Context) ([]*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE deleted_at IS NULL AND is_active = true
 		ORDER BY level, sort_order, number ASC
@@ -637,7 +637,7 @@ func (r *workPaperNoteRepository) GetByWorkPaper(ctx context.Context, workPaperI
 // getMasterItemByID is a helper method to load MasterItem data for a work paper note
 func (r *workPaperNoteRepository) getMasterItemByID(ctx context.Context, masterItemID uuid.UUID) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, statement, explanation, filling_guide, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE id = $1 AND deleted_at IS NULL
 	`

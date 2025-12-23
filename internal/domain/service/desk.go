@@ -31,11 +31,10 @@ type LLMService interface {
 
 // DocumentCheckRequest represents the request for document checking
 type DocumentCheckRequest struct {
-	Number       string         `json:"number"`
-	Statement    string         `json:"statement"`
-	Explanation  string         `json:"explanation"`
-	FillingGuide string         `json:"filling_guide"`
-	Documents    []DocumentFile `json:"documents"`
+	Number          string         `json:"number"`
+	Classification  string         `json:"classification"`
+	DeskInstruction string         `json:"desk_instruction"`
+	Documents       []DocumentFile `json:"documents"`
 }
 
 // DocumentFile represents a document file for LLM processing
@@ -127,27 +126,25 @@ type DeskService interface {
 
 // Request/Response DTOs
 type CreateWorkPaperItemRequest struct {
-	Type         string     `json:"type" validate:"required"`
-	Number       string     `json:"number" validate:"required"`
-	Statement    string     `json:"statement" validate:"required"`
-	Explanation  string     `json:"explanation"`
-	FillingGuide string     `json:"filling_guide"`
-	ParentID     *uuid.UUID `json:"parent_id"`
-	Level        int        `json:"level"`
-	SortOrder    int        `json:"sort_order"`
+	Type            string     `json:"type" validate:"required"`
+	Number          string     `json:"number" validate:"required"`
+	Classification  string     `json:"classification"`
+	DeskInstruction string     `json:"desk_instruction" validate:"required"`
+	ParentID        *uuid.UUID `json:"parent_id"`
+	Level           int        `json:"level"`
+	SortOrder       int        `json:"sort_order"`
 }
 
 type UpdateWorkPaperItemRequest struct {
-	ID           uuid.UUID  `json:"id" validate:"required"`
-	Type         string     `json:"type" validate:"required"`
-	Number       string     `json:"number" validate:"required"`
-	Statement    string     `json:"statement" validate:"required"`
-	Explanation  string     `json:"explanation"`
-	FillingGuide string     `json:"filling_guide"`
-	ParentID     *uuid.UUID `json:"parent_id"`
-	Level        int        `json:"level"`
-	SortOrder    *int       `json:"sort_order"`
-	IsActive     *bool      `json:"is_active"`
+	ID              uuid.UUID  `json:"id" validate:"required"`
+	Type            string     `json:"type" validate:"required"`
+	Number          string     `json:"number" validate:"required"`
+	Classification  string     `json:"classification"`
+	DeskInstruction string     `json:"desk_instruction" validate:"required"`
+	ParentID        *uuid.UUID `json:"parent_id"`
+	Level           int        `json:"level"`
+	SortOrder       *int       `json:"sort_order"`
+	IsActive        *bool      `json:"is_active"`
 }
 
 type ListWorkPaperItemsRequest struct {

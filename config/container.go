@@ -19,6 +19,7 @@ import (
 	postgresRepo "sandbox/internal/infrastructure/postgres"
 	"sandbox/internal/infrastructure/zoom"
 	businessTripUC "sandbox/internal/usecase/business_trip"
+	chatbotUC "sandbox/internal/usecase/chatbot"
 	grcUC "sandbox/internal/usecase/grc"
 	meetingUC "sandbox/internal/usecase/meeting"
 	transactionUC "sandbox/internal/usecase/transaction"
@@ -46,6 +47,7 @@ type Container struct {
 	WorkPaperSignatureHandler       *handler.WorkPaperSignatureHandler
 	VaccineHandler                  *handler.VaccineHandler
 	GRCHandler                      *handler.GRCHandler
+	ChatbotHandler                  *handler.ChatbotHandler
 
 	// Backward compatibility aliases (deprecated)
 	MasterLakipItemHandler *deskHandler.WorkPaperItemHandler
@@ -419,6 +421,34 @@ func NewContainer(cfg *Config) *Container {
 		getCategoriesUseCase,
 	)
 
+	// Chatbot - RAG-powered chat with Gemini File Search
+	fileSearchClient := gemini.NewFileSearchClient(cfg.Gemini.APIKey)
+	chatbotRepo := postgresRepo.NewChatbotRepository(dbWrapper)
+	createKnowledgeBaseUseCase := chatbotUC.NewCreateKnowledgeBaseUseCase(chatbotRepo, fileSearchClient)
+	listKnowledgeBasesUseCase := chatbotUC.NewListKnowledgeBasesUseCase(chatbotRepo)
+	getKnowledgeBaseUseCase := chatbotUC.NewGetKnowledgeBaseUseCase(chatbotRepo)
+	deleteKnowledgeBaseUseCase := chatbotUC.NewDeleteKnowledgeBaseUseCase(chatbotRepo, fileSearchClient)
+	uploadFilesUseCase := chatbotUC.NewUploadFilesUseCase(chatbotRepo, fileSearchClient)
+	syncDocumentStatusUseCase := chatbotUC.NewSyncDocumentStatusUseCase(chatbotRepo, fileSearchClient)
+	createChatSessionUseCase := chatbotUC.NewCreateChatSessionUseCase(chatbotRepo)
+	listChatSessionsUseCase := chatbotUC.NewListChatSessionsUseCase(chatbotRepo)
+	deleteChatSessionUseCase := chatbotUC.NewDeleteChatSessionUseCase(chatbotRepo)
+	sendMessageUseCase := chatbotUC.NewSendMessageUseCase(chatbotRepo, fileSearchClient)
+	getChatHistoryUseCase := chatbotUC.NewGetChatHistoryUseCase(chatbotRepo)
+	chatbotHandler := handler.NewChatbotHandler(
+		createKnowledgeBaseUseCase,
+		listKnowledgeBasesUseCase,
+		getKnowledgeBaseUseCase,
+		deleteKnowledgeBaseUseCase,
+		uploadFilesUseCase,
+		syncDocumentStatusUseCase,
+		createChatSessionUseCase,
+		listChatSessionsUseCase,
+		deleteChatSessionUseCase,
+		sendMessageUseCase,
+		getChatHistoryUseCase,
+	)
+
 	return &Container{
 		TransactionHandler:                     transactionHandler,
 		MeetingHandler:                         meetingHandler,
@@ -432,6 +462,7 @@ func NewContainer(cfg *Config) *Container {
 		WorkPaperSignatureHandler:              workPaperSignatureHandler,
 		VaccineHandler:                         vaccineHandler,
 		GRCHandler:                             grcHandler,
+		ChatbotHandler:                         chatbotHandler,
 		ExtractTransactionsUseCase:             extractTransactionsUseCase,
 		GenerateRecapExcelUseCase:              generateRecapExcelUseCase,
 		CreateMeetingUseCase:                   createMeetingUseCase,
