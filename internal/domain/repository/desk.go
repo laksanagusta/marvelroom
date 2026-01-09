@@ -16,6 +16,19 @@ type WorkPaperItemRepository interface {
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperItem, int64, error)
 	ListActive(ctx context.Context) ([]*entity.WorkPaperItem, error)
+	ListActiveByTopicIDs(ctx context.Context, topicIDs []string) ([]*entity.WorkPaperItem, error)
+	GetMaxSequence(ctx context.Context, topicID *string, parentID *string) (int, error)
+}
+
+// WorkPaperTopicRepository defines the interface for work paper topic data operations
+type WorkPaperTopicRepository interface {
+	Create(ctx context.Context, topic *entity.WorkPaperTopic) (*entity.WorkPaperTopic, error)
+	GetByID(ctx context.Context, id string) (*entity.WorkPaperTopic, error)
+	GetByName(ctx context.Context, name string) (*entity.WorkPaperTopic, error)
+	Update(ctx context.Context, topic *entity.WorkPaperTopic) (*entity.WorkPaperTopic, error)
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperTopic, int64, error)
+	ListActive(ctx context.Context) ([]*entity.WorkPaperTopic, error)
 }
 
 // OrganizationRepository defines the interface for organization data operations
@@ -30,6 +43,7 @@ type WorkPaperFilter struct {
 	OrganizationID string `json:"organization_id,omitempty"`
 	Year           int    `json:"year,omitempty"`
 	Semester       int    `json:"semester,omitempty"`
+	Name           string `json:"name,omitempty"`
 }
 
 // WorkPaperRepository defines the interface for work paper data operations
@@ -37,6 +51,7 @@ type WorkPaperRepository interface {
 	Create(ctx context.Context, wp *entity.WorkPaper) (*entity.WorkPaper, error)
 	GetByID(ctx context.Context, id string) (*entity.WorkPaper, error)
 	GetByOrganizationYearSemester(ctx context.Context, organizationID string, year, semester int) (*entity.WorkPaper, error)
+	GetByOrganizationYearSemesterName(ctx context.Context, organizationID string, year, semester int, name string) (*entity.WorkPaper, error)
 	GetByFilter(ctx context.Context, filter *WorkPaperFilter, page, limit int) ([]*entity.WorkPaper, int64, error)
 	Update(ctx context.Context, wp *entity.WorkPaper) (*entity.WorkPaper, error)
 	Delete(ctx context.Context, id string) error

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,18 +18,20 @@ import (
 
 // deskService implements the DeskService interface
 type deskService struct {
-	workPaperItemRepo repository.WorkPaperItemRepository
-	organizationRepo  repository.OrganizationRepository
-	workPaperRepo     repository.WorkPaperRepository
-	workPaperNoteRepo repository.WorkPaperNoteRepository
-	signatureRepo     repository.WorkPaperSignatureRepository
-	driveService      DriveService
-	llmService        LLMService
+	workPaperItemRepo  repository.WorkPaperItemRepository
+	workPaperTopicRepo repository.WorkPaperTopicRepository
+	organizationRepo   repository.OrganizationRepository
+	workPaperRepo      repository.WorkPaperRepository
+	workPaperNoteRepo  repository.WorkPaperNoteRepository
+	signatureRepo      repository.WorkPaperSignatureRepository
+	driveService       DriveService
+	llmService         LLMService
 }
 
 // NewDeskService creates a new desk service instance
 func NewDeskService(
 	workPaperItemRepo repository.WorkPaperItemRepository,
+	workPaperTopicRepo repository.WorkPaperTopicRepository,
 	organizationRepo repository.OrganizationRepository,
 	workPaperRepo repository.WorkPaperRepository,
 	workPaperNoteRepo repository.WorkPaperNoteRepository,
@@ -36,22 +40,46 @@ func NewDeskService(
 	llmService LLMService,
 ) DeskService {
 	return &deskService{
-		workPaperItemRepo: workPaperItemRepo,
-		organizationRepo:  organizationRepo,
-		workPaperRepo:     workPaperRepo,
-		workPaperNoteRepo: workPaperNoteRepo,
-		signatureRepo:     signatureRepo,
-		driveService:      driveService,
-		llmService:        llmService,
+		workPaperItemRepo:  workPaperItemRepo,
+		workPaperTopicRepo: workPaperTopicRepo,
+		organizationRepo:   organizationRepo,
+		workPaperRepo:      workPaperRepo,
+		workPaperNoteRepo:  workPaperNoteRepo,
+		signatureRepo:      signatureRepo,
+		driveService:       driveService,
+		llmService:         llmService,
 	}
 }
 
 // Work Paper Item operations
 
 func (s *deskService) CreateWorkPaperItem(ctx context.Context, req *CreateWorkPaperItemRequest) (*entity.WorkPaperItem, error) {
-	item, err := entity.NewWorkPaperItem(req.Type, req.Number, req.Classification, req.DeskInstruction, req.ParentID, req.Level, req.SortOrder)
+	// Calculate next sequence number
+	var topicIDStr *string
+	if req.TopicID != nil {
+		s := req.TopicID.String()
+		topicIDStr = &s
+	}
+
+	var parentIDStr *string
+	if req.ParentID != nil {
+		s := req.ParentID.String()
+		parentIDStr = &s
+	}
+
+	maxSeq, err := s.workPaperItemRepo.GetMaxSequence(ctx, topicIDStr, parentIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get max sequence: %w", err)
+	}
+
+	item, err := entity.NewWorkPaperItem(req.Type, req.Number, req.DeskInstruction, req.TopicID, req.ParentID, req.Level, maxSeq+1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper item: %w", err)
+	}
+
+	// Set expected folder name if provided
+	if req.ExpectedFolderName != nil {
+		item.ExpectedFolderName = req.ExpectedFolderName
 	}
 
 	createdItem, err := s.workPaperItemRepo.Create(ctx, item)
@@ -87,9 +115,14 @@ func (s *deskService) UpdateWorkPaperItem(ctx context.Context, req *UpdateWorkPa
 	}
 
 	// If IsActive is not provided, just update other fields
-	err = item.Update(req.Type, req.Number, req.Classification, req.DeskInstruction, req.SortOrder)
+	err = item.Update(req.Type, req.Number, req.DeskInstruction, req.TopicID, req.Sequence)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper item: %w", err)
+	}
+
+	// Update expected folder name if provided
+	if req.ExpectedFolderName != nil {
+		item.ExpectedFolderName = req.ExpectedFolderName
 	}
 
 	// Update parent ID if provided
@@ -274,6 +307,217 @@ func (s *deskService) GetOrganization(ctx context.Context, id string) (*entity.O
 	return org, nil
 }
 
+// Work Paper Topic operations
+
+func (s *deskService) CreateWorkPaperTopic(ctx context.Context, req *CreateWorkPaperTopicRequest) (*entity.WorkPaperTopic, error) {
+	// Check for duplicate topic name
+	existing, _ := s.workPaperTopicRepo.GetByName(ctx, req.Name)
+	if existing != nil {
+		return nil, entity.ErrDuplicateWorkPaperTopicName
+	}
+
+	// Convert description to pointer
+	var description *string
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	topic, err := entity.NewWorkPaperTopic(req.Name, description, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create work paper topic: %w", err)
+	}
+
+	createdTopic, err := s.workPaperTopicRepo.Create(ctx, topic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save work paper topic: %w", err)
+	}
+
+	return createdTopic, nil
+}
+
+func (s *deskService) GetWorkPaperTopic(ctx context.Context, id string) (*entity.WorkPaperTopic, error) {
+	topic, err := s.workPaperTopicRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+
+	return topic, nil
+}
+
+func (s *deskService) UpdateWorkPaperTopic(ctx context.Context, req *UpdateWorkPaperTopicRequest) (*entity.WorkPaperTopic, error) {
+	topic, err := s.workPaperTopicRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+
+	// Check for duplicate name if name is changing
+	if topic.Name != req.Name {
+		existing, _ := s.workPaperTopicRepo.GetByName(ctx, req.Name)
+		if existing != nil && existing.ID != topic.ID {
+			return nil, entity.ErrDuplicateWorkPaperTopicName
+		}
+	}
+
+	// Convert description to pointer
+	var description *string
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	// Update fields (keep existing template path)
+	if err := topic.Update(req.Name, description, topic.TemplatePath, req.IsActive); err != nil {
+		return nil, fmt.Errorf("failed to update work paper topic: %w", err)
+	}
+
+	updatedTopic, err := s.workPaperTopicRepo.Update(ctx, topic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save work paper topic: %w", err)
+	}
+
+	return updatedTopic, nil
+}
+
+func (s *deskService) DeleteWorkPaperTopic(ctx context.Context, id string) error {
+	// Check if topic exists
+	_, err := s.workPaperTopicRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+
+	err = s.workPaperTopicRepo.Delete(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete work paper topic: %w", err)
+	}
+
+	return nil
+}
+
+func (s *deskService) ListWorkPaperTopics(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperTopic, int64, error) {
+	// Handle nil params with defaults
+	if params == nil {
+		params = &pagination.QueryParams{
+			Pagination: pagination.Pagination{Page: 1, Limit: 20},
+		}
+	}
+
+	topics, total, err := s.workPaperTopicRepo.List(ctx, params)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list work paper topics: %w", err)
+	}
+
+	return topics, total, nil
+}
+
+func (s *deskService) GetActiveWorkPaperTopics(ctx context.Context) ([]*entity.WorkPaperTopic, error) {
+	topics, err := s.workPaperTopicRepo.ListActive(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active work paper topics: %w", err)
+	}
+
+	return topics, nil
+}
+
+// UploadWorkPaperTopicTemplate uploads an Excel template file for a work paper topic
+func (s *deskService) UploadWorkPaperTopicTemplate(ctx context.Context, req *UploadWorkPaperTopicTemplateRequest) (*entity.WorkPaperTopic, error) {
+	// Validate file type (only Excel files allowed)
+	validTypes := []string{
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+		"application/vnd.ms-excel", // .xls
+	}
+	isValidType := false
+	for _, t := range validTypes {
+		if req.ContentType == t {
+			isValidType = true
+			break
+		}
+	}
+	if !isValidType {
+		return nil, fmt.Errorf("invalid file type: only Excel files (.xlsx, .xls) are allowed")
+	}
+
+	// Get topic
+	topic, err := s.workPaperTopicRepo.GetByID(ctx, req.TopicID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+
+	// Create uploads directory if not exists
+	uploadDir := "uploads/templates"
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+	}
+
+	// Generate unique filename with topic ID
+	ext := filepath.Ext(req.FileName)
+	uniqueFileName := fmt.Sprintf("%s_%d%s", topic.ID.String(), time.Now().Unix(), ext)
+	filePath := filepath.Join(uploadDir, uniqueFileName)
+
+	// Delete old template file if exists
+	if topic.TemplatePath != nil && *topic.TemplatePath != "" {
+		_ = os.Remove(*topic.TemplatePath) // Ignore error if file doesn't exist
+	}
+
+	// Save file
+	if err := os.WriteFile(filePath, req.FileContent, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to save template file: %w", err)
+	}
+
+	// Update topic with new template path
+	if err := topic.Update(topic.Name, topic.Description, &filePath, nil); err != nil {
+		// Cleanup file if update fails
+		_ = os.Remove(filePath)
+		return nil, fmt.Errorf("failed to update topic: %w", err)
+	}
+
+	// Increment template version
+	topic.IncrementTemplateVersion()
+
+	updatedTopic, err := s.workPaperTopicRepo.Update(ctx, topic)
+	if err != nil {
+		// Cleanup file if update fails
+		_ = os.Remove(filePath)
+		return nil, fmt.Errorf("failed to save work paper topic: %w", err)
+	}
+
+	log.Printf("Successfully uploaded template for topic %s: %s", topic.ID.String(), filePath)
+	return updatedTopic, nil
+}
+
+// DeleteWorkPaperTopicTemplate deletes the Excel template file from a work paper topic
+func (s *deskService) DeleteWorkPaperTopicTemplate(ctx context.Context, topicID string) error {
+	// Get topic
+	topic, err := s.workPaperTopicRepo.GetByID(ctx, topicID)
+	if err != nil {
+		return fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+
+	// Check if template exists
+	if topic.TemplatePath == nil || *topic.TemplatePath == "" {
+		return fmt.Errorf("no template file found for this topic")
+	}
+
+	// Delete the file
+	if err := os.Remove(*topic.TemplatePath); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete template file: %w", err)
+		}
+	}
+
+	// Update topic to remove template path
+	var emptyPath *string
+	if err := topic.Update(topic.Name, topic.Description, emptyPath, nil); err != nil {
+		return fmt.Errorf("failed to update topic: %w", err)
+	}
+
+	_, err = s.workPaperTopicRepo.Update(ctx, topic)
+	if err != nil {
+		return fmt.Errorf("failed to save work paper topic: %w", err)
+	}
+
+	log.Printf("Successfully deleted template for topic %s", topic.ID.String())
+	return nil
+}
+
 // Work Paper operations
 
 func (s *deskService) CreateWorkPaper(ctx context.Context, req *CreateWorkPaperRequest) (*entity.WorkPaper, error) {
@@ -288,13 +532,29 @@ func (s *deskService) CreateWorkPaper(ctx context.Context, req *CreateWorkPaperR
 		return nil, fmt.Errorf("organization not found: %w", err)
 	}
 
-	// Check if work paper already exists for this organization, year, and semester
-	existingWorkPaper, _ := s.workPaperRepo.GetByOrganizationYearSemester(ctx, req.OrganizationID, req.Year, req.Semester)
+	// Generate default name if not provided
+	workPaperName := req.Name
+	if workPaperName == "" {
+		workPaperName = fmt.Sprintf("Work Paper %d S%d", req.Year, req.Semester)
+	}
+
+	// Check if work paper already exists for this organization, year, semester, and name
+	existingWorkPaper, _ := s.workPaperRepo.GetByOrganizationYearSemesterName(ctx, req.OrganizationID, req.Year, req.Semester, workPaperName)
 	if existingWorkPaper != nil {
 		return nil, entity.ErrDuplicateWorkPaper
 	}
 
-	workPaper, err := entity.NewWorkPaper(organizationID, req.Year, req.Semester)
+	// Parse TopicID
+	var topicID *uuid.UUID
+	if req.TopicID != "" {
+		id, err := uuid.Parse(req.TopicID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid topic ID: %w", err)
+		}
+		topicID = &id
+	}
+
+	workPaper, err := entity.NewWorkPaper(organizationID, req.Name, req.Year, req.Semester, topicID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper: %w", err)
 	}
@@ -305,7 +565,13 @@ func (s *deskService) CreateWorkPaper(ctx context.Context, req *CreateWorkPaperR
 	}
 
 	// Create work paper notes from active master items
-	masterItems, err := s.workPaperItemRepo.ListActive(ctx)
+	var masterItems []*entity.WorkPaperItem
+	if req.TopicID != "" {
+		masterItems, err = s.workPaperItemRepo.ListActiveByTopicIDs(ctx, []string{req.TopicID})
+	} else {
+		masterItems, err = s.workPaperItemRepo.ListActive(ctx)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get master items: %w", err)
 	}
@@ -419,6 +685,161 @@ func (s *deskService) ListWorkPapersByOrganization(ctx context.Context, organiza
 	return workPapers, nil
 }
 
+// UpdateWorkPaper updates work paper fields (name, status, source_folder_link)
+func (s *deskService) UpdateWorkPaper(ctx context.Context, req *UpdateWorkPaperRequest) (*entity.WorkPaper, error) {
+	workPaper, err := s.workPaperRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper: %w", err)
+	}
+
+	// Update fields if provided
+	if req.Name != nil {
+		workPaper.Name = *req.Name
+	}
+
+	if req.Status != nil {
+		if err := workPaper.UpdateStatus(*req.Status); err != nil {
+			return nil, fmt.Errorf("failed to update status: %w", err)
+		}
+	}
+
+	if req.SourceFolderLink != nil {
+		workPaper.SourceFolderLink = req.SourceFolderLink
+	}
+
+	workPaper.UpdatedAt = time.Now()
+
+	updatedWorkPaper, err := s.workPaperRepo.Update(ctx, workPaper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update work paper: %w", err)
+	}
+
+	log.Printf("Updated work paper %s", req.ID)
+	return updatedWorkPaper, nil
+}
+
+// SyncWorkPaperFolder syncs work paper notes with files in Google Drive folder
+func (s *deskService) SyncWorkPaperFolder(ctx context.Context, workPaperID string) (*SyncFolderResponse, error) {
+	// Get work paper
+	workPaper, err := s.workPaperRepo.GetByID(ctx, workPaperID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper: %w", err)
+	}
+
+	// Check if source folder link is set
+	if workPaper.SourceFolderLink == nil || *workPaper.SourceFolderLink == "" {
+		return nil, fmt.Errorf("source folder link is not set for this work paper")
+	}
+
+	// Get all notes for this work paper
+	notes, err := s.workPaperNoteRepo.GetByWorkPaper(ctx, workPaperID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work paper notes: %w", err)
+	}
+
+	log.Printf("Syncing folder for work paper %s with %d notes", workPaperID, len(notes))
+
+	// Initialize response
+	response := &SyncFolderResponse{
+		WorkPaperID:     workPaperID,
+		SyncedAt:        time.Now().Format(time.RFC3339),
+		TotalNotes:      len(notes),
+		NotesSyncStatus: make([]NoteSyncStatus, 0, len(notes)),
+	}
+
+	// Process each note
+	for _, note := range notes {
+		// Get master item to get expected folder name
+		masterItem, err := s.workPaperItemRepo.GetByID(ctx, note.MasterItemID.String())
+		if err != nil {
+			log.Printf("Failed to get master item %s: %v", note.MasterItemID.String(), err)
+			continue
+		}
+
+		noteStatus := NoteSyncStatus{
+			NoteID:           note.ID.String(),
+			MasterItemNumber: masterItem.Number,
+		}
+
+		// Check if master item has expected folder name
+		if masterItem.ExpectedFolderName == nil || *masterItem.ExpectedFolderName == "" {
+			noteStatus.FileStatus = entity.FileStatusPending
+			noteStatus.Message = "No expected folder name configured in master item"
+			response.NotesSyncStatus = append(response.NotesSyncStatus, noteStatus)
+			continue
+		}
+
+		noteStatus.ExpectedFolderName = *masterItem.ExpectedFolderName
+
+		// Try to find the subfolder by name
+		folder, err := s.driveService.GetFolderByName(ctx, *workPaper.SourceFolderLink, *masterItem.ExpectedFolderName)
+		if err != nil {
+			log.Printf("Error finding folder %s: %v", *masterItem.ExpectedFolderName, err)
+			noteStatus.FileStatus = entity.FileStatusMissing
+			noteStatus.Message = fmt.Sprintf("Error accessing folder: %v", err)
+			response.MissingCount++
+			response.NotesSyncStatus = append(response.NotesSyncStatus, noteStatus)
+
+			// Update note status in database
+			note.FileStatus = entity.FileStatusMissing
+			_, _ = s.workPaperNoteRepo.Update(ctx, note)
+			continue
+		}
+
+		if folder == nil {
+			// Folder not found
+			noteStatus.FileStatus = entity.FileStatusMissing
+			noteStatus.Message = "Folder not found in Google Drive"
+			response.MissingCount++
+
+			// Update note status in database
+			note.FileStatus = entity.FileStatusMissing
+			_, _ = s.workPaperNoteRepo.Update(ctx, note)
+		} else if folder.FileCount == 0 {
+			// Folder exists but is empty
+			noteStatus.FileStatus = entity.FileStatusMissing
+			noteStatus.FilesInFolder = 0
+			noteStatus.GDriveLink = folder.URL
+			noteStatus.Message = "Folder exists but is empty"
+			response.MissingCount++
+
+			// Update note with folder link but mark as missing
+			note.FileStatus = entity.FileStatusMissing
+			note.GDriveLink = &folder.URL
+			_, _ = s.workPaperNoteRepo.Update(ctx, note)
+		} else {
+			// Folder exists and has files
+			noteStatus.FileStatus = entity.FileStatusFound
+			noteStatus.FilesInFolder = folder.FileCount
+			noteStatus.GDriveLink = folder.URL
+			noteStatus.Message = fmt.Sprintf("Found %d files in folder", folder.FileCount)
+			response.FoundCount++
+
+			// Update note with folder link and mark as linked
+			note.FileStatus = entity.FileStatusLinked
+			note.GDriveLink = &folder.URL
+			note.FilesInFolder = folder.FileCount
+			_, _ = s.workPaperNoteRepo.Update(ctx, note)
+			response.LinkedCount++
+		}
+
+		response.NotesSyncStatus = append(response.NotesSyncStatus, noteStatus)
+	}
+
+	// Update work paper last sync timestamp
+	now := time.Now()
+	workPaper.LastFolderSyncAt = &now
+	_, err = s.workPaperRepo.Update(ctx, workPaper)
+	if err != nil {
+		log.Printf("Failed to update last sync timestamp: %v", err)
+	}
+
+	log.Printf("Folder sync completed for work paper %s: Total=%d, Found=%d, Missing=%d, Linked=%d",
+		workPaperID, response.TotalNotes, response.FoundCount, response.MissingCount, response.LinkedCount)
+
+	return response, nil
+}
+
 // Work Paper Note operations
 
 func (s *deskService) GetWorkPaperNotes(ctx context.Context, workPaperID string) ([]*entity.WorkPaperNote, error) {
@@ -474,7 +895,6 @@ func (s *deskService) CheckDocument(ctx context.Context, noteID string) (*CheckD
 			return nil, fmt.Errorf("failed to get files from Google Drive: %w", err)
 		}
 
-		log.Printf("Found %d files from Google Drive", len(files))
 		for _, file := range files {
 			log.Printf("Downloading file: %s (ID: %s, Type: %s)", file.Name, file.ID, file.Type)
 			data, err := s.driveService.DownloadFile(ctx, file.ID)
@@ -494,14 +914,29 @@ func (s *deskService) CheckDocument(ctx context.Context, noteID string) (*CheckD
 		log.Printf("No Google Drive link found for note ID: %s", noteID)
 	}
 
-	log.Printf("Total documents prepared for LLM: %d", len(documents))
-
 	// Check documents using LLM
+	// Get topic name and description if topic is associated
+	topicName := ""
+	topicDescription := ""
+	if masterItem.TopicID != nil {
+		topic, err := s.workPaperTopicRepo.GetByID(ctx, masterItem.TopicID.String())
+		if err != nil {
+			log.Printf("Failed to get topic %s: %v", masterItem.TopicID.String(), err)
+			// Continue without topic data if there's an error
+		} else if topic != nil {
+			topicName = topic.Name
+			if topic.Description != nil {
+				topicDescription = *topic.Description
+			}
+			log.Printf("Using topic: %s, description: %s", topicName, topicDescription)
+		}
+	}
 	llmReq := &DocumentCheckRequest{
-		Number:          masterItem.Number,
-		Classification:  masterItem.Classification,
-		DeskInstruction: masterItem.DeskInstruction,
-		Documents:       documents,
+		Number:           masterItem.Number,
+		Classification:   topicName,
+		TopicDescription: topicDescription,
+		DeskInstruction:  masterItem.DeskInstruction,
+		Documents:        documents,
 	}
 
 	llmResp, err := s.llmService.CheckDocument(ctx, llmReq)
@@ -559,17 +994,15 @@ func (s *deskService) UpdateWorkPaperNoteValidation(ctx context.Context, noteID 
 // Backward compatibility methods (deprecated)
 // Note: These methods are provided for backward compatibility but will be removed in future versions
 // Please use the new WorkPaper* methods instead
-
 func (s *deskService) CreateMasterLakipItem(ctx context.Context, req *CreateMasterLakipItemRequest) (*entity.WorkPaperItem, error) {
 	// Convert to new request type and call new method
 	newReq := &CreateWorkPaperItemRequest{
 		Type:            req.Type,
 		Number:          req.Number,
-		Classification:  req.Classification,
+		TopicID:         req.TopicID,
 		DeskInstruction: req.DeskInstruction,
 		ParentID:        req.ParentID,
 		Level:           req.Level,
-		SortOrder:       req.SortOrder,
 	}
 	return s.CreateWorkPaperItem(ctx, newReq)
 }
@@ -583,9 +1016,9 @@ func (s *deskService) UpdateMasterLakipItem(ctx context.Context, id string, req 
 	newReq := &UpdateWorkPaperItemRequest{
 		Type:            req.Type,
 		Number:          req.Number,
-		Classification:  req.Classification,
+		TopicID:         req.TopicID,
 		DeskInstruction: req.DeskInstruction,
-		SortOrder:       req.SortOrder,
+		Sequence:        req.Sequence,
 	}
 	// Set ID from parameter
 	newReq.ID, _ = uuid.Parse(id)

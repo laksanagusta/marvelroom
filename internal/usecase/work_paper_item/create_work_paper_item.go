@@ -3,8 +3,15 @@ package work_paper_item
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"sandbox/internal/domain/service"
 )
+
+// parseUUID helper function to parse UUID string
+func parseUUID(s string) (uuid.UUID, error) {
+	return uuid.Parse(s)
+}
 
 // CreateWorkPaperItemUseCase handles the creation of work paper items
 type CreateWorkPaperItemUseCase struct {
@@ -20,28 +27,29 @@ func NewCreateWorkPaperItemUseCase(deskService service.DeskService) *CreateWorkP
 
 // Request represents the request payload for creating a work paper item
 type Request struct {
-	Type            string `json:"type" validate:"required"`
-	Number          string `json:"number" validate:"required"`
-	Classification  string `json:"classification"`
-	DeskInstruction string `json:"desk_instruction" validate:"required"`
-	ParentID        string `json:"parent_id,omitempty"`
-	Level           int    `json:"level"`
-	SortOrder       int    `json:"sort_order"`
+	Type               string  `json:"type" validate:"required"`
+	Number             string  `json:"number" validate:"required"`
+	TopicID            string  `json:"topic_id"`
+	DeskInstruction    string  `json:"desk_instruction" validate:"required"`
+	ExpectedFolderName *string `json:"expected_folder_name,omitempty"`
+	ParentID           string  `json:"parent_id,omitempty"`
+	Level              int     `json:"level"`
 }
 
 // Response represents the response payload for creating a work paper item
 type Response struct {
-	ID              string `json:"id"`
-	Type            string `json:"type"`
-	Number          string `json:"number"`
-	Classification  string `json:"classification"`
-	DeskInstruction string `json:"desk_instruction"`
-	ParentID        string `json:"parent_id,omitempty"`
-	Level           int    `json:"level"`
-	SortOrder       int    `json:"sort_order"`
-	IsActive        bool   `json:"is_active"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID                 string  `json:"id"`
+	Type               string  `json:"type"`
+	Number             string  `json:"number"`
+	TopicID            *string `json:"topic_id,omitempty"`
+	DeskInstruction    string  `json:"desk_instruction"`
+	ExpectedFolderName *string `json:"expected_folder_name,omitempty"`
+	ParentID           string  `json:"parent_id,omitempty"`
+	Level              int     `json:"level"`
+	Sequence           int     `json:"sequence"`
+	IsActive           bool    `json:"is_active"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
 }
 
 // Execute executes the use case
@@ -50,17 +58,24 @@ func (uc *CreateWorkPaperItemUseCase) Execute(ctx context.Context, req Request) 
 	serviceReq := &service.CreateWorkPaperItemRequest{
 		Type:            req.Type,
 		Number:          req.Number,
-		Classification:  req.Classification,
 		DeskInstruction: req.DeskInstruction,
 		Level:           req.Level,
-		SortOrder:       req.SortOrder,
+	}
+
+	// Handle TopicID if provided
+	if req.TopicID != "" {
+		topicUUID, err := parseUUID(req.TopicID)
+		if err == nil {
+			serviceReq.TopicID = &topicUUID
+		}
 	}
 
 	// Handle ParentID if provided
 	if req.ParentID != "" {
-		// Convert string ParentID to UUID if needed
-		// For simplicity, we'll leave it as empty for now
-		// In a real implementation, you would parse the UUID string here
+		parentUUID, err := parseUUID(req.ParentID)
+		if err == nil {
+			serviceReq.ParentID = &parentUUID
+		}
 	}
 
 	// Call service
@@ -71,16 +86,22 @@ func (uc *CreateWorkPaperItemUseCase) Execute(ctx context.Context, req Request) 
 
 	// Convert to response
 	response := &Response{
-		ID:              item.ID.String(),
-		Type:            item.Type,
-		Number:          item.Number,
-		Classification:  item.Classification,
-		DeskInstruction: item.DeskInstruction,
-		Level:           item.Level,
-		SortOrder:       item.SortOrder,
-		IsActive:        item.IsActive,
-		CreatedAt:       item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:       item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                 item.ID.String(),
+		Type:               item.Type,
+		Number:             item.Number,
+		DeskInstruction:    item.DeskInstruction,
+		ExpectedFolderName: item.ExpectedFolderName,
+		Level:              item.Level,
+		Sequence:           item.Sequence,
+		IsActive:           item.IsActive,
+		CreatedAt:          item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:          item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Handle TopicID if present
+	if item.TopicID != nil {
+		topicIDStr := item.TopicID.String()
+		response.TopicID = &topicIDStr
 	}
 
 	// Handle ParentID if present

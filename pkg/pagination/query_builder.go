@@ -201,6 +201,7 @@ func (qb *QueryBuilder) isValidField(field string) bool {
 		"notes":             true,
 		"last_llm_response": true,
 		"organization_id":   true,
+		"sequence":          true,
 
 		"year":     true,
 		"semester": true,

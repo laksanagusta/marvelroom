@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -8,14 +9,18 @@ import (
 
 // WorkPaper represents a working paper per organization per semester
 type WorkPaper struct {
-	ID             uuid.UUID  `db:"id"`
-	OrganizationID uuid.UUID  `db:"organization_id"`
-	Year           int        `db:"year"`
-	Semester       int        `db:"semester"` // 1 or 2
-	Status         string     `db:"status"`   // draft, ongoing, ready_to_sign, completed
-	CreatedAt      time.Time  `db:"created_at"`
-	UpdatedAt      time.Time  `db:"updated_at"`
-	DeletedAt      *time.Time `db:"deleted_at"`
+	ID               uuid.UUID  `db:"id"`
+	OrganizationID   uuid.UUID  `db:"organization_id"`
+	Name             string     `db:"name"`
+	Year             int        `db:"year"`
+	Semester         int        `db:"semester"` // 1 or 2
+	TopicID          *uuid.UUID `db:"topic_id"`
+	Status           string     `db:"status"`              // draft, ongoing, ready_to_sign, completed
+	SourceFolderLink *string    `db:"source_folder_link"`  // Google Drive root folder link for smart linking
+	LastFolderSyncAt *time.Time `db:"last_folder_sync_at"` // Last folder sync timestamp
+	CreatedAt        time.Time  `db:"created_at"`
+	UpdatedAt        time.Time  `db:"updated_at"`
+	DeletedAt        *time.Time `db:"deleted_at"`
 
 	// Relations
 	Organization *Organization         `db:"-"`
@@ -32,9 +37,13 @@ const (
 )
 
 // NewWorkPaper creates a new work paper with validation
-func NewWorkPaper(organizationID uuid.UUID, year, semester int) (*WorkPaper, error) {
+func NewWorkPaper(organizationID uuid.UUID, name string, year, semester int, topicID *uuid.UUID) (*WorkPaper, error) {
 	if organizationID == uuid.Nil {
 		return nil, ErrOrganizationIDRequired
+	}
+
+	if name == "" {
+		name = fmt.Sprintf("Work Paper %d S%d", year, semester)
 	}
 
 	if year < 2000 || year > 2100 {
@@ -49,8 +58,10 @@ func NewWorkPaper(organizationID uuid.UUID, year, semester int) (*WorkPaper, err
 	return &WorkPaper{
 		ID:             uuid.New(),
 		OrganizationID: organizationID,
+		Name:           name,
 		Year:           year,
 		Semester:       semester,
+		TopicID:        topicID,
 		Status:         WorkPaperStatusDraft,
 		CreatedAt:      now,
 		UpdatedAt:      now,

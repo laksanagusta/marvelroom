@@ -13,6 +13,8 @@ import (
 // DriveService defines the interface for Google Drive operations
 type DriveService interface {
 	GetFilesFromFolder(ctx context.Context, folderLink string) ([]*DriveFile, error)
+	GetSubfolders(ctx context.Context, folderLink string) ([]*DriveFolder, error)
+	GetFolderByName(ctx context.Context, parentFolderLink, folderName string) (*DriveFolder, error)
 	DownloadFile(ctx context.Context, fileID string) ([]byte, error)
 }
 
@@ -24,6 +26,14 @@ type DriveFile struct {
 	URL  string `json:"url"`
 }
 
+// DriveFolder represents a folder from Google Drive
+type DriveFolder struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	FileCount int    `json:"file_count"` // Number of files in this folder
+}
+
 // LLMService defines the interface for LLM operations
 type LLMService interface {
 	CheckDocument(ctx context.Context, req *DocumentCheckRequest) (*DocumentCheckResponse, error)
@@ -31,10 +41,11 @@ type LLMService interface {
 
 // DocumentCheckRequest represents the request for document checking
 type DocumentCheckRequest struct {
-	Number          string         `json:"number"`
-	Classification  string         `json:"classification"`
-	DeskInstruction string         `json:"desk_instruction"`
-	Documents       []DocumentFile `json:"documents"`
+	Number           string         `json:"number"`
+	Classification   string         `json:"classification"`
+	TopicDescription string         `json:"topic_description"`
+	DeskInstruction  string         `json:"desk_instruction"`
+	Documents        []DocumentFile `json:"documents"`
 }
 
 // DocumentFile represents a document file for LLM processing
@@ -75,13 +86,25 @@ type DeskService interface {
 	GetOrganizations(ctx context.Context, page, limit int, sort string) (*entity.OrganizationListResponse, error)
 	GetOrganization(ctx context.Context, id string) (*entity.Organization, error)
 
+	// Work Paper Topic operations
+	CreateWorkPaperTopic(ctx context.Context, req *CreateWorkPaperTopicRequest) (*entity.WorkPaperTopic, error)
+	GetWorkPaperTopic(ctx context.Context, id string) (*entity.WorkPaperTopic, error)
+	UpdateWorkPaperTopic(ctx context.Context, req *UpdateWorkPaperTopicRequest) (*entity.WorkPaperTopic, error)
+	DeleteWorkPaperTopic(ctx context.Context, id string) error
+	ListWorkPaperTopics(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperTopic, int64, error)
+	GetActiveWorkPaperTopics(ctx context.Context) ([]*entity.WorkPaperTopic, error)
+	UploadWorkPaperTopicTemplate(ctx context.Context, req *UploadWorkPaperTopicTemplateRequest) (*entity.WorkPaperTopic, error)
+	DeleteWorkPaperTopicTemplate(ctx context.Context, topicID string) error
+
 	// Work Paper operations
 	CreateWorkPaper(ctx context.Context, req *CreateWorkPaperRequest) (*entity.WorkPaper, error)
 	GetWorkPaper(ctx context.Context, id string) (*entity.WorkPaper, error)
 	GetWorkPaperByOrganizationYearSemester(ctx context.Context, organizationID string, year, semester int) (*entity.WorkPaper, error)
+	UpdateWorkPaper(ctx context.Context, req *UpdateWorkPaperRequest) (*entity.WorkPaper, error)
 	UpdateWorkPaperStatus(ctx context.Context, id string, status string) error
 	ListWorkPapers(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaper, int64, error)
 	ListWorkPapersByOrganization(ctx context.Context, organizationID string) ([]*entity.WorkPaper, error)
+	SyncWorkPaperFolder(ctx context.Context, workPaperID string) (*SyncFolderResponse, error)
 
 	// Work Paper Note operations
 	GetWorkPaperNotes(ctx context.Context, workPaperID string) ([]*entity.WorkPaperNote, error)
@@ -126,25 +149,26 @@ type DeskService interface {
 
 // Request/Response DTOs
 type CreateWorkPaperItemRequest struct {
-	Type            string     `json:"type" validate:"required"`
-	Number          string     `json:"number" validate:"required"`
-	Classification  string     `json:"classification"`
-	DeskInstruction string     `json:"desk_instruction" validate:"required"`
-	ParentID        *uuid.UUID `json:"parent_id"`
-	Level           int        `json:"level"`
-	SortOrder       int        `json:"sort_order"`
+	Type               string     `json:"type" validate:"required"`
+	Number             string     `json:"number" validate:"required"`
+	TopicID            *uuid.UUID `json:"topic_id"`
+	DeskInstruction    string     `json:"desk_instruction" validate:"required"`
+	ExpectedFolderName *string    `json:"expected_folder_name"`
+	ParentID           *uuid.UUID `json:"parent_id"`
+	Level              int        `json:"level"`
 }
 
 type UpdateWorkPaperItemRequest struct {
-	ID              uuid.UUID  `json:"id" validate:"required"`
-	Type            string     `json:"type" validate:"required"`
-	Number          string     `json:"number" validate:"required"`
-	Classification  string     `json:"classification"`
-	DeskInstruction string     `json:"desk_instruction" validate:"required"`
-	ParentID        *uuid.UUID `json:"parent_id"`
-	Level           int        `json:"level"`
-	SortOrder       *int       `json:"sort_order"`
-	IsActive        *bool      `json:"is_active"`
+	ID                 uuid.UUID  `json:"id" validate:"required"`
+	Type               string     `json:"type" validate:"required"`
+	Number             string     `json:"number" validate:"required"`
+	TopicID            *uuid.UUID `json:"topic_id"`
+	DeskInstruction    string     `json:"desk_instruction" validate:"required"`
+	ExpectedFolderName *string    `json:"expected_folder_name"`
+	ParentID           *uuid.UUID `json:"parent_id"`
+	Level              int        `json:"level"`
+	Sequence           *int       `json:"sequence"`
+	IsActive           *bool      `json:"is_active"`
 }
 
 type ListWorkPaperItemsRequest struct {
@@ -152,10 +176,42 @@ type ListWorkPaperItemsRequest struct {
 	IsActive *bool  `json:"is_active"`
 }
 
+// Work Paper Topic DTOs
+type CreateWorkPaperTopicRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description"`
+}
+
+type UpdateWorkPaperTopicRequest struct {
+	ID          string `json:"id" validate:"required"`
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description"`
+	IsActive    *bool  `json:"is_active"`
+}
+
+// UploadWorkPaperTopicTemplateRequest represents the request for uploading an Excel template
+type UploadWorkPaperTopicTemplateRequest struct {
+	TopicID     string `json:"topic_id" validate:"required"`
+	FileName    string `json:"file_name" validate:"required"`
+	FileContent []byte `json:"file_content" validate:"required"`
+	ContentType string `json:"content_type"`
+}
+
 type CreateWorkPaperRequest struct {
-	OrganizationID string `json:"organization_id" validate:"required"`
-	Year           int    `json:"year" validate:"required,min=2000,max=2100"`
-	Semester       int    `json:"semester" validate:"required,oneof=1 2"`
+	OrganizationID   string `json:"organization_id" validate:"required"`
+	Name             string `json:"name"`
+	Year             int    `json:"year" validate:"required,min=2000,max=2100"`
+	Semester         int    `json:"semester" validate:"required,oneof=1 2"`
+	TopicID          string `json:"topic_id"`
+	SourceFolderLink string `json:"source_folder_link"` // Google Drive root folder link
+}
+
+// UpdateWorkPaperRequest represents the request for updating work paper
+type UpdateWorkPaperRequest struct {
+	ID               string  `json:"id" validate:"required"`
+	Name             *string `json:"name,omitempty"`
+	Status           *string `json:"status,omitempty" validate:"omitempty,oneof=draft ongoing ready_to_sign completed"`
+	SourceFolderLink *string `json:"source_folder_link,omitempty"`
 }
 
 type ListWorkPapersRequest struct {
@@ -169,6 +225,28 @@ type CheckDocumentResponse struct {
 	IsValid bool   `json:"isValid"`
 	Notes   string `json:"notes"`
 	Model   string `json:"model"`
+}
+
+// SyncFolderResponse represents the response from folder sync operation
+type SyncFolderResponse struct {
+	WorkPaperID     string           `json:"work_paper_id"`
+	SyncedAt        string           `json:"synced_at"`
+	TotalNotes      int              `json:"total_notes"`
+	FoundCount      int              `json:"found_count"`
+	MissingCount    int              `json:"missing_count"`
+	LinkedCount     int              `json:"linked_count"`
+	NotesSyncStatus []NoteSyncStatus `json:"notes_sync_status"`
+}
+
+// NoteSyncStatus represents the sync status of a single note
+type NoteSyncStatus struct {
+	NoteID             string `json:"note_id"`
+	MasterItemNumber   string `json:"master_item_number"`
+	ExpectedFolderName string `json:"expected_folder_name"`
+	FileStatus         string `json:"file_status"`
+	FilesInFolder      int    `json:"files_in_folder"`
+	GDriveLink         string `json:"gdrive_link,omitempty"`
+	Message            string `json:"message,omitempty"`
 }
 
 // Work Paper Signature DTOs

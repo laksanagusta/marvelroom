@@ -17,13 +17,25 @@ type WorkPaperNote struct {
 	IsValid         *bool        `db:"is_valid"`          // Nullable Y/T result from LLM
 	Notes           *string      `db:"notes"`             // Nullable notes from LLM
 	LastLLMResponse *LLMResponse `db:"last_llm_response"` // Nullable raw LLM response
+	FileStatus      string       `db:"file_status"`       // Status: pending, found, missing, linked
 	CreatedAt       time.Time    `db:"created_at"`
 	UpdatedAt       time.Time    `db:"updated_at"`
 	DeletedAt       *time.Time   `db:"deleted_at"`
 
 	// Relations
 	MasterItem *WorkPaperItem `db:"-"`
+
+	// Computed fields (not persisted, for API response)
+	FilesInFolder int `db:"-"` // Number of files found in the folder
 }
+
+// FileStatus constants for WorkPaperNote
+const (
+	FileStatusPending = "pending" // Initial state, not yet synced
+	FileStatusFound   = "found"   // Folder exists and has files
+	FileStatusMissing = "missing" // Folder is empty or not found
+	FileStatusLinked  = "linked"  // Link has been assigned
+)
 
 // LLMResponse represents the response structure from LLM
 type LLMResponse struct {

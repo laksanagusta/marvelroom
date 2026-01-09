@@ -8,22 +8,24 @@ import (
 
 // WorkPaperItem represents master data for work paper checklist items with tree structure
 type WorkPaperItem struct {
-	ID              uuid.UUID  `db:"id"`
-	Type            string     `db:"type"`             // A, B, C type for work paper hierarchy
-	Number          string     `db:"number"`           // Numbering like 1., 1.1, 1.1.1
-	Classification  string     `db:"classification"`   // Kategori/klasifikasi untuk grouping
-	DeskInstruction string     `db:"desk_instruction"` // Instruksi yang dikirim sebagai prompt ke LLM
-	ParentID        *uuid.UUID `db:"parent_id"`        // Parent ID for tree structure
-	Level           int        `db:"level"`            // Hierarchy level (1, 2, 3)
-	SortOrder       int        `db:"sort_order"`       // Order within same level
-	IsActive        bool       `db:"is_active"`
-	CreatedAt       time.Time  `db:"created_at"`
-	UpdatedAt       time.Time  `db:"updated_at"`
-	DeletedAt       *time.Time `db:"deleted_at"`
+	ID                 uuid.UUID  `db:"id"`
+	Type               string     `db:"type"`                 // A, B, C type for work paper hierarchy
+	Number             string     `db:"number"`               // Numbering like 1., 1.1, 1.1.1
+	TopicID            *uuid.UUID `db:"topic_id"`             // Reference to work paper topic for classification
+	DeskInstruction    string     `db:"desk_instruction"`     // Instruksi yang dikirim sebagai prompt ke LLM
+	ExpectedFolderName *string    `db:"expected_folder_name"` // Expected subfolder name in Google Drive for smart linking
+	ParentID           *uuid.UUID `db:"parent_id"`            // Parent ID for tree structure
+	Level              int        `db:"level"`                // Hierarchy level (1, 2, 3)
+	Sequence           int        `db:"sequence"`             // Sequence number for ordering items
+	IsActive           bool       `db:"is_active"`
+	CreatedAt          time.Time  `db:"created_at"`
+	UpdatedAt          time.Time  `db:"updated_at"`
+	DeletedAt          *time.Time `db:"deleted_at"`
 
 	// Relations
 	Children []*WorkPaperItem `db:"-"`
 	Parent   *WorkPaperItem   `db:"-"`
+	Topic    *WorkPaperTopic  `db:"-"`
 }
 
 // WorkPaperItemType constants
@@ -34,7 +36,7 @@ const (
 )
 
 // NewWorkPaperItem creates a new work paper item with validation
-func NewWorkPaperItem(itemType, number, classification, deskInstruction string, parentID *uuid.UUID, level, sortOrder int) (*WorkPaperItem, error) {
+func NewWorkPaperItem(itemType, number, deskInstruction string, topicID, parentID *uuid.UUID, level, sequence int) (*WorkPaperItem, error) {
 	if itemType == "" {
 		return nil, ErrWorkPaperItemTypeRequired
 	}
@@ -52,11 +54,11 @@ func NewWorkPaperItem(itemType, number, classification, deskInstruction string, 
 		ID:              uuid.New(),
 		Type:            itemType,
 		Number:          number,
-		Classification:  classification,
+		TopicID:         topicID,
 		DeskInstruction: deskInstruction,
 		ParentID:        parentID,
 		Level:           level,
-		SortOrder:       sortOrder,
+		Sequence:        sequence,
 		IsActive:        true,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -64,7 +66,7 @@ func NewWorkPaperItem(itemType, number, classification, deskInstruction string, 
 }
 
 // Update updates the work paper item fields
-func (w *WorkPaperItem) Update(itemType, number, classification, deskInstruction string, sortOrder *int) error {
+func (w *WorkPaperItem) Update(itemType, number, deskInstruction string, topicID *uuid.UUID, sequence *int) error {
 	if itemType == "" {
 		return ErrWorkPaperItemTypeRequired
 	}
@@ -84,10 +86,10 @@ func (w *WorkPaperItem) Update(itemType, number, classification, deskInstruction
 
 	w.Type = itemType
 	w.Number = number
-	w.Classification = classification
+	w.TopicID = topicID
 	w.DeskInstruction = deskInstruction
-	if sortOrder != nil {
-		w.SortOrder = *sortOrder
+	if sequence != nil {
+		w.Sequence = *sequence
 	}
 	w.UpdatedAt = time.Now()
 

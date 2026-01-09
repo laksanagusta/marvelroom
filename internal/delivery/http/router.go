@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes configures all application routes
-func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler, businessTripVerificationHandler *handler.BusinessTripVerificationHandler, grcHandler *handler.GRCHandler, chatbotHandler *handler.ChatbotHandler) {
+func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, workPaperItemHandler *deskHandler.WorkPaperItemHandler, workPaperTopicHandler *deskHandler.WorkPaperTopicHandler, workPaperHandler *deskHandler.WorkPaperHandler, vaccineHandler *handler.VaccineHandler, signatureHandler *handler.WorkPaperSignatureHandler, businessTripDashboardHandler *handler.BusinessTripDashboardHandler, businessTripVerificationHandler *handler.BusinessTripVerificationHandler, grcHandler *handler.GRCHandler, chatbotHandler *handler.ChatbotHandler) {
 	api := app.Group("/api")
 	api.Post("/upload", middleware.AuthMiddleware(), transactionHandler.UploadAndExtract)
 	api.Post("/upload/detailed", middleware.AuthMiddleware(), transactionHandler.UploadAndExtractDetailed)
@@ -60,17 +60,34 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 			r.Delete("/:id", workPaperItemHandler.DeleteWorkPaperItem)
 		})
 
+		// Work Paper Topic routes (new)
+		r.Route("/work-paper-topics", func(r fiber.Router) {
+			r.Post("/", workPaperTopicHandler.CreateWorkPaperTopic)
+			r.Get("/", workPaperTopicHandler.ListWorkPaperTopics)
+			r.Get("/active", workPaperTopicHandler.GetActiveWorkPaperTopics)
+			r.Get("/:id", workPaperTopicHandler.GetWorkPaperTopic)
+			r.Put("/:id", workPaperTopicHandler.UpdateWorkPaperTopic)
+			r.Delete("/:id", workPaperTopicHandler.DeleteWorkPaperTopic)
+			// Template upload/download/delete routes
+			r.Post("/:id/template", workPaperTopicHandler.UploadTemplate)
+			r.Get("/:id/template", workPaperTopicHandler.DownloadTemplate)
+			r.Delete("/:id/template", workPaperTopicHandler.DeleteTemplate)
+		})
+
 		// Work Paper routes (new)
 		r.Route("/work-papers", func(r fiber.Router) {
 			r.Post("/", workPaperHandler.CreateWorkPaper)
 			r.Get("/", workPaperHandler.ListWorkPapers)
 			r.Get("/status-transitions", workPaperHandler.GetStatusTransitions)
 			r.Get("/:id", workPaperHandler.GetWorkPaperByID)
+			r.Put("/:id", workPaperHandler.UpdateWorkPaper)
 			r.Put("/:id/status", workPaperHandler.UpdateWorkPaperStatus)
 			r.Put("/:id/signers", workPaperHandler.ManageSigners)
 			r.Post("/:id/assign-signers", workPaperHandler.AssignSignersBulk)
 			r.Get("/:id/docx", workPaperHandler.GenerateDocx)
 			r.Get("/:workPaperId/signatures", signatureHandler.GetWorkPaperSignaturesByWorkPaperID)
+			// Smart Document Linking - sync folder
+			r.Post("/:id/sync-folder", workPaperHandler.SyncFolder)
 		})
 
 		// Work Paper Note routes (new)
@@ -179,5 +196,5 @@ func SetupRoutes(app *fiber.App, transactionHandler *handler.TransactionHandler,
 
 // Backward compatibility function (deprecated)
 func SetupRoutesLegacy(app *fiber.App, transactionHandler *handler.TransactionHandler, meetingHandler *handler.MeetingHandler, businessTripHandler *handler.BusinessTripHandler, assigneeHandler *handler.AssigneeHandler, businessTripTransactionHandler *handler.BusinessTripTransactionHandler, masterLakipItemHandler *deskHandler.WorkPaperItemHandler, paperWorkHandler *deskHandler.WorkPaperHandler) {
-	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, paperWorkHandler, nil, nil, nil, nil, nil, nil)
+	SetupRoutes(app, transactionHandler, meetingHandler, businessTripHandler, assigneeHandler, businessTripTransactionHandler, masterLakipItemHandler, nil, paperWorkHandler, nil, nil, nil, nil, nil, nil)
 }

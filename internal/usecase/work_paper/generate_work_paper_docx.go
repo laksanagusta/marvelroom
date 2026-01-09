@@ -155,7 +155,7 @@ func (uc *GenerateWorkPaperDocxUseCase) Execute(ctx context.Context, workPaperID
 		// Notes
 		typeNotes := groupedNotes[t]
 		sort.Slice(typeNotes, func(i, j int) bool {
-			return typeNotes[i].MasterItem.SortOrder < typeNotes[j].MasterItem.SortOrder
+			return typeNotes[i].MasterItem.Sequence < typeNotes[j].MasterItem.Sequence
 		})
 
 		for _, note := range typeNotes {

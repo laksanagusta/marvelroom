@@ -29,6 +29,8 @@ type CreateRequest struct {
 	OrganizationID string                `json:"organization_id" validate:"required"`
 	Year           int                   `json:"year" validate:"required,min=2000,max=2100"`
 	Semester       int                   `json:"semester" validate:"required,oneof=1 2"`
+	Name           string                `json:"name"`
+	TopicID        string                `json:"topic_id"`
 	Signers        []CreateSignerRequest `json:"signers,omitempty"`
 }
 
@@ -43,22 +45,25 @@ type CreateSignerRequest struct {
 
 // CreateResponse represents the response payload for creating a work paper
 type CreateResponse struct {
-	ID             string `json:"id"`
-	OrganizationID string `json:"organization_id"`
-	Year           int    `json:"year"`
-	Semester       int    `json:"semester"`
-	Status         string `json:"status"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID             string  `json:"id"`
+	OrganizationID string  `json:"organization_id"`
+	Year           int     `json:"year"`
+	Semester       int     `json:"semester"`
+	TopicID        *string `json:"topic_id,omitempty"`
+	Status         string  `json:"status"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
 }
 
 // Execute executes the use case
 func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest, authenticatedUser entity.AuthenticatedUser) (*CreateResponse, error) {
 	// Create service request
 	serviceReq := &service.CreateWorkPaperRequest{
-		OrganizationID: authenticatedUser.Organization.ID.String(),
+		OrganizationID: req.OrganizationID,
 		Year:           req.Year,
 		Semester:       req.Semester,
+		TopicID:        req.TopicID,
+		Name:           req.Name,
 	}
 
 	// Call service
@@ -87,11 +92,18 @@ func (uc *CreateWorkPaperUseCase) Execute(ctx context.Context, req CreateRequest
 	}
 
 	// Convert to response
+	var topicIDStr *string
+	if workPaper.TopicID != nil {
+		s := workPaper.TopicID.String()
+		topicIDStr = &s
+	}
+
 	response := &CreateResponse{
 		ID:             workPaper.ID.String(),
 		OrganizationID: workPaper.OrganizationID.String(),
 		Year:           workPaper.Year,
 		Semester:       workPaper.Semester,
+		TopicID:        topicIDStr,
 		Status:         workPaper.Status,
 		CreatedAt:      workPaper.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:      workPaper.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),

@@ -23,6 +23,7 @@ type WorkPaperHandler struct {
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase
 	manageSignersUseCase    *work_paper.ManageSignersUseCase
 	generateDocxUseCase     *work_paper.GenerateWorkPaperDocxUseCase
+	deskService             service.DeskService
 	validator               *validator.Validate
 }
 
@@ -36,6 +37,7 @@ func NewWorkPaperHandler(
 	updateWorkPaperNoteCase *work_paper.UpdateWorkPaperNoteUseCase,
 	manageSignersUseCase *work_paper.ManageSignersUseCase,
 	generateDocxUseCase *work_paper.GenerateWorkPaperDocxUseCase,
+	deskService service.DeskService,
 ) *WorkPaperHandler {
 	return &WorkPaperHandler{
 		createUseCase:           createUseCase,
@@ -46,6 +48,7 @@ func NewWorkPaperHandler(
 		updateWorkPaperNoteCase: updateWorkPaperNoteCase,
 		manageSignersUseCase:    manageSignersUseCase,
 		generateDocxUseCase:     generateDocxUseCase,
+		deskService:             deskService,
 		validator:               validator.New(),
 	}
 }
@@ -558,7 +561,7 @@ func NewPaperWorkHandler(
 	createUseCase *work_paper.CreateWorkPaperUseCase,
 	checkDocumentUseCase *work_paper.CheckWorkPaperNoteUseCase,
 ) *WorkPaperHandler {
-	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil, nil, nil)
+	return NewWorkPaperHandler(createUseCase, checkDocumentUseCase, nil, nil, nil, nil, nil, nil, nil)
 }
 
 // GenerateDocx generates a DOCX document for the work paper
@@ -591,4 +594,117 @@ func (h *WorkPaperHandler) GenerateDocx(c *fiber.Ctx) error {
 	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=work_paper_%s.docx", id))
 	return c.Send(data)
+}
+
+// UpdateWorkPaper updates a work paper
+// @Summary Update Work Paper
+// @Description Updates work paper fields (name, status, source_folder_link)
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper ID"
+// @Param request body UpdateWorkPaperRequest true "Update Work Paper Request"
+// @Success 200 {object} StandardResponse
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-papers/{id} [put]
+func (h *WorkPaperHandler) UpdateWorkPaper(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Work Paper ID is required",
+		})
+	}
+
+	var req UpdateWorkPaperRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	// Build service request
+	serviceReq := &service.UpdateWorkPaperRequest{
+		ID:               id,
+		Name:             req.Name,
+		Status:           req.Status,
+		SourceFolderLink: req.SourceFolderLink,
+	}
+
+	ctx := context.Background()
+	workPaper, err := h.deskService.UpdateWorkPaper(ctx, serviceReq)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to update work paper",
+			"details": err.Error(),
+		})
+	}
+
+	// Build response
+	response := fiber.Map{
+		"id":              workPaper.ID.String(),
+		"organization_id": workPaper.OrganizationID.String(),
+		"name":            workPaper.Name,
+		"year":            workPaper.Year,
+		"semester":        workPaper.Semester,
+		"status":          workPaper.Status,
+		"updated_at":      workPaper.UpdatedAt,
+	}
+
+	if workPaper.SourceFolderLink != nil {
+		response["source_folder_link"] = *workPaper.SourceFolderLink
+	}
+
+	if workPaper.LastFolderSyncAt != nil {
+		response["last_folder_sync_at"] = *workPaper.LastFolderSyncAt
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// SyncFolder syncs work paper notes with files in Google Drive folder
+// @Summary Sync Folder
+// @Description Syncs work paper notes with files in the configured Google Drive folder
+// @Tags desk
+// @Accept json
+// @Produce json
+// @Param id path string true "Work Paper ID"
+// @Success 200 {object} StandardResponse{data=service.SyncFolderResponse}
+// @Failure 400 {object} StandardResponse
+// @Failure 404 {object} StandardResponse
+// @Failure 500 {object} StandardResponse
+// @Router /api/v1/desk/work-papers/{id}/sync-folder [post]
+func (h *WorkPaperHandler) SyncFolder(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Work Paper ID is required",
+		})
+	}
+
+	ctx := context.Background()
+	response, err := h.deskService.SyncWorkPaperFolder(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to sync folder",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// UpdateWorkPaperRequest represents the request to update work paper
+type UpdateWorkPaperRequest struct {
+	Name             *string `json:"name,omitempty"`
+	Status           *string `json:"status,omitempty" validate:"omitempty,oneof=draft ongoing ready_to_sign completed"`
+	SourceFolderLink *string `json:"source_folder_link,omitempty"`
 }

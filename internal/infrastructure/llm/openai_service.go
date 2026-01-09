@@ -44,8 +44,8 @@ func (o *OpenAIService) CheckDocument(ctx context.Context, req *service.Document
 		log.Printf("[OpenAI] Document %d: Name='%s', Type='%s', Size=%d bytes", i, doc.Name, doc.Type, len(doc.Data))
 	}
 
-	// Build the prompt
-	prompt := o.buildPrompt(req.Number, req.Classification, req.DeskInstruction)
+	// Build the prompt using shared function
+	prompt := BuildDocumentCheckPrompt(req.Number, req.Classification, req.TopicDescription, req.DeskInstruction)
 
 	// Prepare content for the request
 	content := []OpenAIContent{
@@ -161,37 +161,6 @@ func (o *OpenAIService) CheckDocument(ctx context.Context, req *service.Document
 	result.Model = o.model
 
 	return result, nil
-}
-
-// buildPrompt constructs the prompt for LAKIP document checking
-func (o *OpenAIService) buildPrompt(number, classification, deskInstruction string) string {
-	prompt := fmt.Sprintf(`Periksa dokumen yang diberikan sesuai dengan poin kertas kerja LAKIP berikut:
-
-Nomor: %s
-Klasifikasi: %s
-
-Instruksi Desk:
-%s
-
-Tugas Anda:
-1. Analisis semua dokumen yang disediakan
-2. Periksa apakah dokumen memenuhi persyaratan yang disebutkan dalam instruksi desk
-3. Berikan penilaian objektif tentang kelengkapan dan kepatuhan dokumen
-
-Jawab dengan format JSON berikut:
-{
-  "isValid": true/false,
-  "note": "Penjelasan tentang temuan, rekomendasi, atau alasan penilaian (maksimal 5-6 kalimat)"
-}
-
-Kriteria penilaian:
-- isValid: true jika dokumen lengkap dan memenuhi persyaratan
-- isValid: false jika dokumen tidak lengkap, tidak memenuhi persyaratan, atau ada masalah signifikan
-- note: berikan penjelasan tentang temuan Anda
-
-Dokumen yang akan dianalisis:`, number, classification, deskInstruction)
-
-	return prompt
 }
 
 // parseLLMResponse parses the structured response from LLM

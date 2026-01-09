@@ -22,31 +22,33 @@ func NewUpdateWorkPaperItemUseCase(deskService service.DeskService) *UpdateWorkP
 
 // UpdateRequest represents the request payload for updating a work paper item
 type UpdateRequest struct {
-	ID              string `json:"id" validate:"required"`
-	Type            string `json:"type" validate:"required"`
-	Number          string `json:"number" validate:"required"`
-	Classification  string `json:"classification"`
-	DeskInstruction string `json:"desk_instruction" validate:"required"`
-	ParentID        string `json:"parent_id,omitempty"`
-	Level           int    `json:"level"`
-	SortOrder       int    `json:"sort_order"`
-	IsActive        *bool  `json:"is_active,omitempty"`
+	ID                 string  `json:"id" validate:"required"`
+	Type               string  `json:"type" validate:"required"`
+	Number             string  `json:"number" validate:"required"`
+	TopicID            string  `json:"topic_id"`
+	DeskInstruction    string  `json:"desk_instruction" validate:"required"`
+	ExpectedFolderName *string `json:"expected_folder_name,omitempty"`
+	ParentID           string  `json:"parent_id,omitempty"`
+	Level              int     `json:"level"`
+	Sequence           int     `json:"sequence"`
+	IsActive           *bool   `json:"is_active,omitempty"`
 }
 
 // UpdateResponse represents the response payload for updating a work paper item
 type UpdateResponse struct {
-	ID              string `json:"id"`
-	Type            string `json:"type"`
-	Number          string `json:"number"`
-	Classification  string `json:"classification"`
-	DeskInstruction string `json:"desk_instruction"`
-	ParentID        string `json:"parent_id,omitempty"`
-	Level           int    `json:"level"`
-	SortOrder       int    `json:"sort_order"`
-	IsActive        bool   `json:"is_active"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-	DeletedAt       string `json:"deleted_at,omitempty"`
+	ID                 string  `json:"id"`
+	Type               string  `json:"type"`
+	Number             string  `json:"number"`
+	TopicID            *string `json:"topic_id,omitempty"`
+	DeskInstruction    string  `json:"desk_instruction"`
+	ExpectedFolderName *string `json:"expected_folder_name,omitempty"`
+	ParentID           string  `json:"parent_id,omitempty"`
+	Level              int     `json:"level"`
+	Sequence           int     `json:"sequence"`
+	IsActive           bool    `json:"is_active"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
+	DeletedAt          string  `json:"deleted_at,omitempty"`
 }
 
 // Execute executes the use case for updating a work paper item
@@ -67,17 +69,29 @@ func (uc *UpdateWorkPaperItemUseCase) Execute(ctx context.Context, req UpdateReq
 		parentID = &parsedParentID
 	}
 
+	// Parse TopicID if provided
+	var topicID *uuid.UUID
+	if req.TopicID != "" {
+		parsedTopicID, err := uuid.Parse(req.TopicID)
+		if err != nil {
+			return nil, err
+		}
+		topicID = &parsedTopicID
+	}
+
 	// Create service request
+	sequence := req.Sequence
 	serviceReq := &service.UpdateWorkPaperItemRequest{
-		ID:              itemID,
-		Type:            req.Type,
-		Number:          req.Number,
-		Classification:  req.Classification,
-		DeskInstruction: req.DeskInstruction,
-		ParentID:        parentID,
-		Level:           req.Level,
-		SortOrder:       &req.SortOrder,
-		IsActive:        req.IsActive,
+		ID:                 itemID,
+		Type:               req.Type,
+		Number:             req.Number,
+		TopicID:            topicID,
+		DeskInstruction:    req.DeskInstruction,
+		ExpectedFolderName: req.ExpectedFolderName,
+		ParentID:           parentID,
+		Level:              req.Level,
+		Sequence:           &sequence,
+		IsActive:           req.IsActive,
 	}
 
 	// Call service
@@ -88,16 +102,22 @@ func (uc *UpdateWorkPaperItemUseCase) Execute(ctx context.Context, req UpdateReq
 
 	// Convert to response
 	response := &UpdateResponse{
-		ID:              item.ID.String(),
-		Type:            item.Type,
-		Number:          item.Number,
-		Classification:  item.Classification,
-		DeskInstruction: item.DeskInstruction,
-		Level:           item.Level,
-		SortOrder:       item.SortOrder,
-		IsActive:        item.IsActive,
-		CreatedAt:       item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:       item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                 item.ID.String(),
+		Type:               item.Type,
+		Number:             item.Number,
+		DeskInstruction:    item.DeskInstruction,
+		ExpectedFolderName: item.ExpectedFolderName,
+		Level:              item.Level,
+		Sequence:           item.Sequence,
+		IsActive:           item.IsActive,
+		CreatedAt:          item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:          item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Handle TopicID if present
+	if item.TopicID != nil {
+		topicIDStr := item.TopicID.String()
+		response.TopicID = &topicIDStr
 	}
 
 	// Handle ParentID if present

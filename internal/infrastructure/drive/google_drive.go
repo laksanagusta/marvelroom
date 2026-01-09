@@ -129,6 +129,96 @@ func (g *GoogleDriveService) GetFilesFromFolder(ctx context.Context, folderLink 
 	return driveFiles, nil
 }
 
+// GetSubfolders retrieves subfolders from a Google Drive folder
+func (g *GoogleDriveService) GetSubfolders(ctx context.Context, folderLink string) ([]*service.DriveFolder, error) {
+	folderID, err := g.extractFolderID(folderLink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract folder ID: %w", err)
+	}
+
+	// Query for folders only
+	query := fmt.Sprintf("'%s' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", folderID)
+	folders, err := g.service.Files.List().Q(query).
+		Fields("files(id,name,webViewLink)").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list subfolders: %w", err)
+	}
+
+	var driveFolders []*service.DriveFolder
+	for _, folder := range folders.Files {
+		// Count files in this subfolder
+		fileCount, err := g.countFilesInFolder(ctx, folder.Id)
+		if err != nil {
+			log.Printf("Warning: failed to count files in folder %s: %v", folder.Name, err)
+			fileCount = 0
+		}
+
+		driveFolder := &service.DriveFolder{
+			ID:        folder.Id,
+			Name:      folder.Name,
+			URL:       folder.WebViewLink,
+			FileCount: fileCount,
+		}
+		driveFolders = append(driveFolders, driveFolder)
+	}
+
+	log.Printf("Found %d subfolders in folder", len(driveFolders))
+	return driveFolders, nil
+}
+
+// GetFolderByName finds a subfolder by name within a parent folder
+func (g *GoogleDriveService) GetFolderByName(ctx context.Context, parentFolderLink, folderName string) (*service.DriveFolder, error) {
+	folderID, err := g.extractFolderID(parentFolderLink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract folder ID: %w", err)
+	}
+
+	// Query for specific folder by name
+	query := fmt.Sprintf("'%s' in parents and mimeType='application/vnd.google-apps.folder' and name='%s' and trashed=false", folderID, folderName)
+	folders, err := g.service.Files.List().Q(query).
+		Fields("files(id,name,webViewLink)").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find folder: %w", err)
+	}
+
+	if len(folders.Files) == 0 {
+		return nil, nil // Folder not found
+	}
+
+	folder := folders.Files[0]
+
+	// Count files in this folder
+	fileCount, err := g.countFilesInFolder(ctx, folder.Id)
+	if err != nil {
+		log.Printf("Warning: failed to count files in folder %s: %v", folder.Name, err)
+		fileCount = 0
+	}
+
+	return &service.DriveFolder{
+		ID:        folder.Id,
+		Name:      folder.Name,
+		URL:       folder.WebViewLink,
+		FileCount: fileCount,
+	}, nil
+}
+
+// countFilesInFolder counts the number of files (not folders) in a folder
+func (g *GoogleDriveService) countFilesInFolder(ctx context.Context, folderID string) (int, error) {
+	query := fmt.Sprintf("'%s' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false", folderID)
+	files, err := g.service.Files.List().Q(query).
+		Fields("files(id)").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return 0, err
+	}
+	return len(files.Files), nil
+}
+
 // DownloadFile downloads file content from Google Drive
 func (g *GoogleDriveService) DownloadFile(ctx context.Context, fileID string) ([]byte, error) {
 	if fileID == "" {

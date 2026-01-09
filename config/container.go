@@ -43,6 +43,7 @@ type Container struct {
 	BusinessTripDashboardHandler    *handler.BusinessTripDashboardHandler
 	BusinessTripVerificationHandler *handler.BusinessTripVerificationHandler
 	WorkPaperItemHandler            *deskHandler.WorkPaperItemHandler
+	WorkPaperTopicHandler           *deskHandler.WorkPaperTopicHandler
 	WorkPaperHandler                *deskHandler.WorkPaperHandler
 	WorkPaperSignatureHandler       *handler.WorkPaperSignatureHandler
 	VaccineHandler                  *handler.VaccineHandler
@@ -281,6 +282,7 @@ func NewContainer(cfg *Config) *Container {
 
 	// Desk Module Infrastructure
 	workPaperItemRepo := postgresRepo.NewWorkPaperItemRepository(dbWrapper)
+	workPaperTopicRepo := postgresRepo.NewWorkPaperTopicRepository(dbWrapper)
 	workPaperRepo := postgresRepo.NewWorkPaperRepository(dbWrapper)
 	workPaperNoteRepo := postgresRepo.NewWorkPaperNoteRepository(dbWrapper)
 	workPaperSignatureRepo := postgresRepo.NewWorkPaperSignatureRepository(dbx)
@@ -307,6 +309,7 @@ func NewContainer(cfg *Config) *Container {
 
 	deskService := service.NewDeskService(
 		workPaperItemRepo,
+		workPaperTopicRepo,
 		organizationRepo,
 		workPaperRepo,
 		workPaperNoteRepo,
@@ -371,6 +374,8 @@ func NewContainer(cfg *Config) *Container {
 		listWorkPaperItemsUseCase,
 	)
 
+	workPaperTopicHandler := deskHandler.NewWorkPaperTopicHandler(deskService)
+
 	workPaperHandler := deskHandler.NewWorkPaperHandler(
 		createWorkPaperUseCase,
 		checkWorkPaperNoteUseCase,
@@ -380,6 +385,7 @@ func NewContainer(cfg *Config) *Container {
 		updateWorkPaperNoteUseCase,
 		manageSignersUseCase,
 		generateWorkPaperDocxUseCase,
+		deskService,
 	)
 
 	// Work Paper Signature Handler
@@ -458,6 +464,7 @@ func NewContainer(cfg *Config) *Container {
 		BusinessTripDashboardHandler:           businessTripDashboardHandler,
 		BusinessTripVerificationHandler:        businessTripVerificationHandler,
 		WorkPaperItemHandler:                   workPaperItemHandler,
+		WorkPaperTopicHandler:                  workPaperTopicHandler,
 		WorkPaperHandler:                       workPaperHandler,
 		WorkPaperSignatureHandler:              workPaperSignatureHandler,
 		VaccineHandler:                         vaccineHandler,

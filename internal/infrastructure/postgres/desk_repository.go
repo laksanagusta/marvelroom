@@ -3,11 +3,13 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 
 	"sandbox/internal/domain/entity"
 	"sandbox/internal/domain/repository"
@@ -27,13 +29,13 @@ func NewWorkPaperItemRepository(db database.Queryer) repository.WorkPaperItemRep
 func (r *workPaperItemRepository) Create(ctx context.Context, item *entity.WorkPaperItem) (*entity.WorkPaperItem, error) {
 	query := `
 		INSERT INTO work_paper_items (
-			id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
-		item.ID, item.Type, item.Number, item.Classification, item.DeskInstruction,
-		item.ParentID, item.Level, item.SortOrder, item.IsActive, item.CreatedAt, item.UpdatedAt,
+		item.ID, item.Type, item.Number, item.TopicID, item.DeskInstruction, item.ExpectedFolderName,
+		item.ParentID, item.Level, item.Sequence, item.IsActive, item.CreatedAt, item.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper item: %w", err)
@@ -43,7 +45,7 @@ func (r *workPaperItemRepository) Create(ctx context.Context, item *entity.WorkP
 
 func (r *workPaperItemRepository) GetByID(ctx context.Context, id string) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -61,7 +63,7 @@ func (r *workPaperItemRepository) GetByID(ctx context.Context, id string) (*enti
 
 func (r *workPaperItemRepository) GetByNumber(ctx context.Context, number string) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE number = $1 AND deleted_at IS NULL
 	`
@@ -80,14 +82,14 @@ func (r *workPaperItemRepository) GetByNumber(ctx context.Context, number string
 func (r *workPaperItemRepository) Update(ctx context.Context, item *entity.WorkPaperItem) (*entity.WorkPaperItem, error) {
 	query := `
 		UPDATE work_paper_items
-		SET type = $2, number = $3, classification = $4, desk_instruction = $5, parent_id = $6, level = $7, sort_order = $8, is_active = $9, updated_at = $10
+		SET type = $2, number = $3, topic_id = $4, desk_instruction = $5, expected_folder_name = $6, parent_id = $7, level = $8, sequence = $9, is_active = $10, updated_at = $11
 		WHERE id = $1
 	`
 
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx, query,
-		item.ID, item.Type, item.Number, item.Classification, item.DeskInstruction,
-		item.ParentID, item.Level, item.SortOrder, item.IsActive, now,
+		item.ID, item.Type, item.Number, item.TopicID, item.DeskInstruction, item.ExpectedFolderName,
+		item.ParentID, item.Level, item.Sequence, item.IsActive, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper item: %w", err)
@@ -136,7 +138,7 @@ func (r *workPaperItemRepository) List(ctx context.Context, params *pagination.Q
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
 		SELECT
-			id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+			id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items`)
 	for _, filter := range params.Filters {
 		if err := queryBuilder.AddFilter(filter); err != nil {
@@ -154,7 +156,7 @@ func (r *workPaperItemRepository) List(ctx context.Context, params *pagination.Q
 	if len(params.Sorts) == 0 {
 		params.Sorts = []pagination.Sort{
 			{Field: "level", Order: "asc"},
-			{Field: "sort_order", Order: "asc"},
+			{Field: "sequence", Order: "asc"},
 			{Field: "number", Order: "asc"},
 		}
 	}
@@ -194,10 +196,10 @@ func (r *workPaperItemRepository) List(ctx context.Context, params *pagination.Q
 
 func (r *workPaperItemRepository) ListActive(ctx context.Context) ([]*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE deleted_at IS NULL AND is_active = true
-		ORDER BY level, sort_order, number ASC
+		ORDER BY level, sequence, number ASC
 	`
 
 	var items []*entity.WorkPaperItem
@@ -207,6 +209,62 @@ func (r *workPaperItemRepository) ListActive(ctx context.Context) ([]*entity.Wor
 	}
 
 	return items, nil
+}
+
+func (r *workPaperItemRepository) ListActiveByTopicIDs(ctx context.Context, topicIDs []string) ([]*entity.WorkPaperItem, error) {
+	if len(topicIDs) == 0 {
+		return r.ListActive(ctx)
+	}
+
+	query := `
+		SELECT id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
+		FROM work_paper_items
+		WHERE deleted_at IS NULL AND is_active = true AND topic_id IN (?)
+		ORDER BY level, sequence, number ASC
+	`
+
+	query, args, err := sqlx.In(query, topicIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
+
+	query = r.db.Rebind(query)
+
+	var items []*entity.WorkPaperItem
+	err = r.db.SelectContext(ctx, &items, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active work paper items by topics: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *workPaperItemRepository) GetMaxSequence(ctx context.Context, topicID *string, parentID *string) (int, error) {
+	query := `SELECT COALESCE(MAX(sequence), 0) FROM work_paper_items WHERE deleted_at IS NULL`
+	args := []interface{}{}
+
+	if topicID != nil {
+		query += " AND topic_id = ?"
+		args = append(args, *topicID)
+	} else {
+		query += " AND topic_id IS NULL"
+	}
+
+	if parentID != nil {
+		query += " AND parent_id = ?"
+		args = append(args, *parentID)
+	} else {
+		query += " AND parent_id IS NULL"
+	}
+
+	query = r.db.Rebind(query)
+
+	var maxSeq int
+	err := r.db.GetContext(ctx, &maxSeq, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get max sequence: %w", err)
+	}
+	return maxSeq, nil
 }
 
 // Work paper repository
@@ -223,12 +281,12 @@ func (r *workPaperRepository) Create(ctx context.Context, wp *entity.WorkPaper) 
 
 	query := `
 		INSERT INTO work_papers (
-			id, organization_id, year, semester, status, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+			id, organization_id, name, year, semester, topic_id, status, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
-		wp.ID, wp.OrganizationID, wp.Year, wp.Semester, wp.Status, wp.CreatedAt, wp.UpdatedAt,
+		wp.ID, wp.OrganizationID, wp.Name, wp.Year, wp.Semester, wp.TopicID, wp.Status, wp.CreatedAt, wp.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper: %w", err)
@@ -238,7 +296,7 @@ func (r *workPaperRepository) Create(ctx context.Context, wp *entity.WorkPaper) 
 
 func (r *workPaperRepository) GetByID(ctx context.Context, id string) (*entity.WorkPaper, error) {
 	query := `
-		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+		SELECT id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
 		FROM work_papers
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -256,7 +314,7 @@ func (r *workPaperRepository) GetByID(ctx context.Context, id string) (*entity.W
 
 func (r *workPaperRepository) GetByOrganizationYearSemester(ctx context.Context, organizationID string, year, semester int) (*entity.WorkPaper, error) {
 	query := `
-		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+		SELECT id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
 		FROM work_papers
 		WHERE organization_id = $1 AND year = $2 AND semester = $3 AND deleted_at IS NULL
 	`
@@ -272,15 +330,36 @@ func (r *workPaperRepository) GetByOrganizationYearSemester(ctx context.Context,
 	return &wp, nil
 }
 
+func (r *workPaperRepository) GetByOrganizationYearSemesterName(ctx context.Context, organizationID string, year, semester int, name string) (*entity.WorkPaper, error) {
+	query := `
+		SELECT id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
+		FROM work_papers
+		WHERE organization_id = $1 AND year = $2 AND semester = $3 AND name = $4 AND deleted_at IS NULL
+	`
+
+	var wp entity.WorkPaper
+	err := r.db.GetContext(ctx, &wp, query, organizationID, year, semester, name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, entity.ErrWorkPaperNotFound
+		}
+		return nil, fmt.Errorf("failed to get work paper: %w", err)
+	}
+	return &wp, nil
+}
+
 func (r *workPaperRepository) Update(ctx context.Context, wp *entity.WorkPaper) (*entity.WorkPaper, error) {
+	jsn, _ := json.Marshal(wp)
+	log.Println(string(jsn))
+
 	query := `
 		UPDATE work_papers
-		SET status = $2, updated_at = $3
+		SET name = $2, status = $3, source_folder_link = $4, last_folder_sync_at = $5, updated_at = $6
 		WHERE id = $1
 	`
 
 	now := time.Now()
-	_, err := r.db.ExecContext(ctx, query, wp.ID, wp.Status, now)
+	_, err := r.db.ExecContext(ctx, query, wp.ID, wp.Name, wp.Status, wp.SourceFolderLink, wp.LastFolderSyncAt, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper: %w", err)
 	}
@@ -336,7 +415,7 @@ func (r *workPaperRepository) List(ctx context.Context, params *pagination.Query
 
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
-		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+		SELECT id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
 		FROM work_papers`)
 
 	// Add deleted_at filter
@@ -395,7 +474,7 @@ func (r *workPaperRepository) List(ctx context.Context, params *pagination.Query
 
 func (r *workPaperRepository) ListByOrganization(ctx context.Context, organizationID string) ([]*entity.WorkPaper, error) {
 	query := `
-		SELECT id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+		SELECT id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
 		FROM work_papers
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY year DESC, semester DESC
@@ -471,7 +550,7 @@ func (r *workPaperRepository) GetByFilter(ctx context.Context, filter *repositor
 	// Build main query
 	queryBuilder := pagination.NewQueryBuilder(`
 		SELECT
-			id, organization_id, year, semester, status, created_at, updated_at, deleted_at
+			id, organization_id, name, year, semester, topic_id, status, source_folder_link, last_folder_sync_at, created_at, updated_at, deleted_at
 		FROM work_papers`)
 
 	// Add deleted_at filter to main query
@@ -546,13 +625,18 @@ func NewWorkPaperNoteRepository(db database.Queryer) repository.WorkPaperNoteRep
 func (r *workPaperNoteRepository) Create(ctx context.Context, note *entity.WorkPaperNote) (*entity.WorkPaperNote, error) {
 	query := `
 		INSERT INTO work_paper_notes (
-			id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, file_status, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
+
+	// Set default file_status if not set
+	if note.FileStatus == "" {
+		note.FileStatus = "pending"
+	}
 
 	_, err := r.db.ExecContext(ctx, query,
 		note.ID, note.WorkPaperID, note.MasterItemID, note.GDriveLink, note.IsValid,
-		note.Notes, note.LastLLMResponse, note.CreatedAt, note.UpdatedAt,
+		note.Notes, note.LastLLMResponse, note.FileStatus, note.CreatedAt, note.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create work paper note: %w", err)
@@ -574,7 +658,7 @@ func (r *workPaperNoteRepository) CreateBatch(ctx context.Context, notes []*enti
 
 func (r *workPaperNoteRepository) GetByID(ctx context.Context, id string) (*entity.WorkPaperNote, error) {
 	query := `
-		SELECT id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, created_at, updated_at, deleted_at
+		SELECT id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, file_status, created_at, updated_at, deleted_at
 		FROM work_paper_notes
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -605,7 +689,7 @@ func (r *workPaperNoteRepository) GetByID(ctx context.Context, id string) (*enti
 
 func (r *workPaperNoteRepository) GetByWorkPaper(ctx context.Context, workPaperID string) ([]*entity.WorkPaperNote, error) {
 	query := `
-		SELECT id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, created_at, updated_at, deleted_at
+		SELECT id, work_paper_id, master_item_id, gdrive_link, is_valid, notes, last_llm_response, file_status, created_at, updated_at, deleted_at
 		FROM work_paper_notes
 		WHERE work_paper_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at ASC
@@ -637,7 +721,7 @@ func (r *workPaperNoteRepository) GetByWorkPaper(ctx context.Context, workPaperI
 // getMasterItemByID is a helper method to load MasterItem data for a work paper note
 func (r *workPaperNoteRepository) getMasterItemByID(ctx context.Context, masterItemID uuid.UUID) (*entity.WorkPaperItem, error) {
 	query := `
-		SELECT id, type, number, classification, desk_instruction, parent_id, level, sort_order, is_active, created_at, updated_at, deleted_at
+		SELECT id, type, number, topic_id, desk_instruction, expected_folder_name, parent_id, level, sequence, is_active, created_at, updated_at, deleted_at
 		FROM work_paper_items
 		WHERE id = $1 AND deleted_at IS NULL
 	`
@@ -656,13 +740,13 @@ func (r *workPaperNoteRepository) getMasterItemByID(ctx context.Context, masterI
 func (r *workPaperNoteRepository) Update(ctx context.Context, note *entity.WorkPaperNote) (*entity.WorkPaperNote, error) {
 	query := `
 		UPDATE work_paper_notes
-		SET gdrive_link = $2, is_valid = $3, notes = $4, last_llm_response = $5, updated_at = $6
+		SET gdrive_link = $2, is_valid = $3, notes = $4, last_llm_response = $5, file_status = $6, updated_at = $7
 		WHERE id = $1
 	`
 
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx, query,
-		note.ID, note.GDriveLink, note.IsValid, note.Notes, note.LastLLMResponse, now,
+		note.ID, note.GDriveLink, note.IsValid, note.Notes, note.LastLLMResponse, note.FileStatus, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update work paper note: %w", err)
@@ -693,6 +777,206 @@ func (r *workPaperNoteRepository) List(ctx context.Context, params interface{}) 
 
 func (r *workPaperNoteRepository) WithTransaction(tx interface{}) repository.WorkPaperNoteRepository {
 	return r
+}
+
+// Work paper topic repository
+type workPaperTopicRepository struct {
+	db database.Queryer
+}
+
+func NewWorkPaperTopicRepository(db database.Queryer) repository.WorkPaperTopicRepository {
+	return &workPaperTopicRepository{db: db}
+}
+
+func (r *workPaperTopicRepository) Create(ctx context.Context, topic *entity.WorkPaperTopic) (*entity.WorkPaperTopic, error) {
+	query := `
+		INSERT INTO work_paper_topics (
+			id, name, description, template_path, template_version, is_active, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	_, err := r.db.ExecContext(ctx, query,
+		topic.ID, topic.Name, topic.Description, topic.TemplatePath, topic.TemplateVersion,
+		topic.IsActive, topic.CreatedAt, topic.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create work paper topic: %w", err)
+	}
+	return topic, nil
+}
+
+func (r *workPaperTopicRepository) GetByID(ctx context.Context, id string) (*entity.WorkPaperTopic, error) {
+	query := `
+		SELECT id, name, description, template_path, template_version, is_active, created_at, updated_at, deleted_at
+		FROM work_paper_topics
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+
+	var topic entity.WorkPaperTopic
+	err := r.db.GetContext(ctx, &topic, query, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, entity.ErrWorkPaperTopicNotFound
+		}
+		return nil, fmt.Errorf("failed to get work paper topic: %w", err)
+	}
+	return &topic, nil
+}
+
+func (r *workPaperTopicRepository) GetByName(ctx context.Context, name string) (*entity.WorkPaperTopic, error) {
+	query := `
+		SELECT id, name, description, template_path, template_version, is_active, created_at, updated_at, deleted_at
+		FROM work_paper_topics
+		WHERE name = $1 AND deleted_at IS NULL
+	`
+
+	var topic entity.WorkPaperTopic
+	err := r.db.GetContext(ctx, &topic, query, name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, entity.ErrWorkPaperTopicNotFound
+		}
+		return nil, fmt.Errorf("failed to get work paper topic by name: %w", err)
+	}
+	return &topic, nil
+}
+
+func (r *workPaperTopicRepository) Update(ctx context.Context, topic *entity.WorkPaperTopic) (*entity.WorkPaperTopic, error) {
+	query := `
+		UPDATE work_paper_topics
+		SET name = $2, description = $3, template_path = $4, template_version = $5, is_active = $6, updated_at = $7
+		WHERE id = $1
+	`
+
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, query,
+		topic.ID, topic.Name, topic.Description, topic.TemplatePath, topic.TemplateVersion, topic.IsActive, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update work paper topic: %w", err)
+	}
+
+	topic.UpdatedAt = now
+	return topic, nil
+}
+
+func (r *workPaperTopicRepository) Delete(ctx context.Context, id string) error {
+	query := `
+		UPDATE work_paper_topics
+		SET deleted_at = $1, updated_at = $2, is_active = false
+		WHERE id = $3
+	`
+
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, query, now, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete work paper topic: %w", err)
+	}
+	return nil
+}
+
+func (r *workPaperTopicRepository) List(ctx context.Context, params *pagination.QueryParams) ([]*entity.WorkPaperTopic, int64, error) {
+	// Handle nil params with defaults
+	if params == nil {
+		params = &pagination.QueryParams{
+			Pagination: pagination.Pagination{Page: 1, Limit: 20},
+		}
+	}
+
+	// Build count query
+	countBuilder := pagination.NewQueryBuilder("SELECT COUNT(*) FROM work_paper_topics")
+	countBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, filter := range params.Filters {
+		if err := countBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+	countQuery, countArgs := countBuilder.Build()
+
+	var totalCount int64
+	err := r.db.GetContext(ctx, &totalCount, countQuery, countArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count work paper topics: %w", err)
+	}
+
+	// Build main query
+	queryBuilder := pagination.NewQueryBuilder(`
+		SELECT id, name, description, template_path, template_version, is_active, created_at, updated_at, deleted_at
+		FROM work_paper_topics`)
+
+	queryBuilder.AddFilter(pagination.Filter{
+		Field:    "deleted_at",
+		Operator: "is",
+		Value:    nil,
+	})
+
+	for _, filter := range params.Filters {
+		if err := queryBuilder.AddFilter(filter); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// Add default sorting if no sorts provided
+	if len(params.Sorts) == 0 {
+		params.Sorts = []pagination.Sort{
+			{Field: "name", Order: "asc"},
+		}
+	}
+
+	for _, sort := range params.Sorts {
+		if err := queryBuilder.AddSort(sort); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	query, args := queryBuilder.Build()
+
+	// Add pagination
+	offset := (params.Pagination.Page - 1) * params.Pagination.Limit
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", params.Pagination.Limit, offset)
+
+	var topics []*entity.WorkPaperTopic
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query work paper topics: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var topic entity.WorkPaperTopic
+		if err := rows.StructScan(&topic); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan work paper topic: %w", err)
+		}
+		topics = append(topics, &topic)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return topics, totalCount, nil
+}
+
+func (r *workPaperTopicRepository) ListActive(ctx context.Context) ([]*entity.WorkPaperTopic, error) {
+	query := `
+		SELECT id, name, description, template_path, template_version, is_active, created_at, updated_at, deleted_at
+		FROM work_paper_topics
+		WHERE deleted_at IS NULL AND is_active = true
+		ORDER BY name ASC
+	`
+
+	var topics []*entity.WorkPaperTopic
+	err := r.db.SelectContext(ctx, &topics, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active work paper topics: %w", err)
+	}
+
+	return topics, nil
 }
 
 // Backward compatibility factory functions (deprecated)

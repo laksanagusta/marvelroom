@@ -264,3 +264,46 @@ func GetTextFromOpenAIResponse(resp *OpenAIResponse) (string, error) {
 	}
 	return resp.Choices[0].Message.Content, nil
 }
+
+// BuildDocumentCheckPrompt constructs the prompt for LAKIP document checking
+// This is a shared function used by both Gemini and OpenAI services
+func BuildDocumentCheckPrompt(number, classification, topicDescription, deskInstruction string) string {
+	// Build context section if topic description is available
+	contextSection := ""
+	if topicDescription != "" {
+		contextSection = fmt.Sprintf(`
+Konteks Topic:
+%s
+`, topicDescription)
+	}
+
+	prompt := fmt.Sprintf(`Periksa dokumen yang diberikan sesuai dengan poin kertas kerja LAKIP berikut:
+
+Nomor: %s
+Klasifikasi: %s
+%s
+Instruksi Desk:
+%s
+
+Tugas Anda:
+1. Analisis semua dokumen yang disediakan
+2. Periksa apakah isi dokumen telah memenuhi persyaratan yang disebutkan dalam instruksi desk
+3. Berikan penilaian objektif dan berbasis bukti tentang kelengkapan dan kepatuhan dokumen
+4. Jika dokumen tidak memenuhi persyaratan, berikan rekomendasi untuk perbaikan
+5. Jika menurutmu sudah memenuhi persyaratan, berikan bukti pernyataan mana yang membuat poin ini telah memenuhi persyaratan
+
+Jawab dengan format JSON berikut:
+{
+  "isValid": true/false,
+  "note": "Penjelasan tentang temuan, rekomendasi, atau alasan penilaian (maksimal 5-6 kalimat)"
+}
+
+Kriteria penilaian:
+- isValid: true jika dokumen lengkap dan memenuhi persyaratan
+- isValid: false jika dokumen tidak lengkap, tidak memenuhi persyaratan, atau ada masalah signifikan
+- note: berikan penjelasan tentang temuan Anda
+
+Dokumen yang akan dianalisis:`, number, classification, contextSection, deskInstruction)
+
+	return prompt
+}

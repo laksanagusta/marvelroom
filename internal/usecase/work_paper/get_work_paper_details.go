@@ -20,14 +20,18 @@ func NewGetWorkPaperDetailsUseCase(deskService service.DeskService) *GetWorkPape
 
 // GetWorkPaperDetailsResponse represents the detailed response with all related data
 type GetWorkPaperDetailsResponse struct {
-	ID             string                `json:"id"`
-	OrganizationID string                `json:"organization_id"`
-	Organization   *OrganizationResponse `json:"organization,omitempty"`
-	Year           int                   `json:"year"`
-	Semester       int                   `json:"semester"`
-	Status         string                `json:"status"`
-	CreatedAt      string                `json:"created_at"`
-	UpdatedAt      string                `json:"updated_at"`
+	ID               string                `json:"id"`
+	OrganizationID   string                `json:"organization_id"`
+	Organization     *OrganizationResponse `json:"organization,omitempty"`
+	Name             string                `json:"name"`
+	Year             int                   `json:"year"`
+	Semester         int                   `json:"semester"`
+	TopicID          *string               `json:"topic_id,omitempty"`
+	Status           string                `json:"status"`
+	SourceFolderLink *string               `json:"source_folder_link,omitempty"`
+	LastFolderSyncAt *string               `json:"last_folder_sync_at,omitempty"`
+	CreatedAt        string                `json:"created_at"`
+	UpdatedAt        string                `json:"updated_at"`
 	// Include related data
 	WorkPaperNotes []*WorkPaperNoteResponse      `json:"work_paper_notes,omitempty"`
 	Signatures     []*WorkPaperSignatureResponse `json:"signatures,omitempty"`
@@ -35,16 +39,19 @@ type GetWorkPaperDetailsResponse struct {
 
 // WorkPaperNoteResponse represents a work paper note in the detailed response
 type WorkPaperNoteResponse struct {
-	ID              string `json:"id"`
-	WorkPaperID     string `json:"work_paper_id"`
-	Classification  string `json:"classification"`
-	DeskInstruction string `json:"desk_instruction"`
-	Status          string `json:"status"`
-	DriveLink       string `json:"gdrive_link"`
-	IsValid         *bool  `json:"is_valid"`
-	Notes           string `json:"notes"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID                 string  `json:"id"`
+	WorkPaperID        string  `json:"work_paper_id"`
+	TopicID            *string `json:"topic_id,omitempty"`
+	TopicDescription   string  `json:"topic_description,omitempty"`
+	DeskInstruction    string  `json:"desk_instruction"`
+	ExpectedFolderName *string `json:"expected_folder_name,omitempty"`
+	Status             string  `json:"status"`
+	DriveLink          string  `json:"gdrive_link"`
+	FileStatus         string  `json:"file_status"`
+	IsValid            *bool   `json:"is_valid"`
+	Notes              string  `json:"notes"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
 }
 
 // WorkPaperSignatureResponse represents a work paper signature in the detailed response
@@ -90,18 +97,28 @@ func (uc *GetWorkPaperDetailsUseCase) Execute(ctx context.Context, workPaperID s
 			ID:          note.ID.String(),
 			WorkPaperID: note.WorkPaperID.String(),
 			DriveLink:   note.GetGDriveLink(),
+			FileStatus:  note.FileStatus,
 			CreatedAt:   note.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:   note.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+
+		// Set default file status if empty
+		if noteResponse.FileStatus == "" {
+			noteResponse.FileStatus = "pending"
 		}
 
 		if note.IsValid != nil {
 			noteResponse.IsValid = note.IsValid
 		}
 
-		// Add classification and desk_instruction from master item if available
+		// Add topic_id, desk_instruction, and expected_folder_name from master item if available
 		if note.MasterItem != nil {
-			noteResponse.Classification = note.MasterItem.Classification
+			if note.MasterItem.TopicID != nil {
+				topicIDStr := note.MasterItem.TopicID.String()
+				noteResponse.TopicID = &topicIDStr
+			}
 			noteResponse.DeskInstruction = note.MasterItem.DeskInstruction
+			noteResponse.ExpectedFolderName = note.MasterItem.ExpectedFolderName
 			noteResponse.Status = "active"
 			if note.MasterItem.DeletedAt != nil {
 				noteResponse.Status = "inactive"
@@ -134,17 +151,32 @@ func (uc *GetWorkPaperDetailsUseCase) Execute(ctx context.Context, workPaperID s
 		signatureResponses = append(signatureResponses, signatureResponse)
 	}
 
+	var topicIDStr *string
+	if workPaper.TopicID != nil {
+		s := workPaper.TopicID.String()
+		topicIDStr = &s
+	}
+
 	// Build the complete response
 	response := &GetWorkPaperDetailsResponse{
-		ID:             workPaper.ID.String(),
-		OrganizationID: workPaper.OrganizationID.String(),
-		Year:           workPaper.Year,
-		Semester:       workPaper.Semester,
-		Status:         workPaper.Status,
-		CreatedAt:      workPaper.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:      workPaper.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		WorkPaperNotes: noteResponses,
-		Signatures:     signatureResponses,
+		ID:               workPaper.ID.String(),
+		OrganizationID:   workPaper.OrganizationID.String(),
+		Name:             workPaper.Name,
+		Year:             workPaper.Year,
+		Semester:         workPaper.Semester,
+		TopicID:          topicIDStr,
+		Status:           workPaper.Status,
+		SourceFolderLink: workPaper.SourceFolderLink,
+		CreatedAt:        workPaper.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:        workPaper.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		WorkPaperNotes:   noteResponses,
+		Signatures:       signatureResponses,
+	}
+
+	// Add last folder sync timestamp if available
+	if workPaper.LastFolderSyncAt != nil {
+		syncAt := workPaper.LastFolderSyncAt.Format("2006-01-02T15:04:05Z07:00")
+		response.LastFolderSyncAt = &syncAt
 	}
 
 	// Add organization data if available
